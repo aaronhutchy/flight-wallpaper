@@ -14,12 +14,14 @@ class WallpaperGenerator:
     
     def __init__(self, config: Dict):
         self.config = config
-        self.width = config['image']['width']
-        self.height = config['image']['height']
-        self.bg_color = config['image']['background_color']
-        self.home_color = config['image']['home_color']
-        self.flight_color = config['image']['flight_color']
-        self.text_color = config['image']['text_color']
+        # Override config for neon pink radar phone wallpaper
+        self.width = 1080   # Phone width
+        self.height = 2316  # 19.3:9 aspect ratio
+        self.bg_color = '#000000'  # Black background
+        self.home_color = '#ff69b4'  # Light pink for home dot
+        self.flight_color = '#ff69b4'  # Light pink for aircraft
+        self.text_color = '#ff69b4'  # Light pink for text
+        self.radar_color = '#ff1493'  # Neon pink for radar circles
         
     def create_wallpaper(self, home_lat: float, home_lon: float, approaches: List[Dict], stats: Dict, output_path: str):
         """Create the wallpaper image"""
@@ -59,28 +61,20 @@ class WallpaperGenerator:
         ax.set_ylim(home_lat - margin, home_lat + margin)
         ax.set_aspect('equal')
         
-        # Add stylized map background
-        try:
-            print("  Adding stylized map background...")
-            # Use CartoDB Voyager for colorful, modern look (more reliable than Watercolor)
-            ctx.add_basemap(ax, crs='EPSG:4326', source=ctx.providers.CartoDB.Voyager, alpha=0.5)
-            print("  ✓ Stylized map background loaded")
-        except Exception as e:
-            print(f"  Note: Map background unavailable: {e}")
-            print("  Continuing with clean grid design")
-            # Draw minimal grid instead
-            self._draw_minimal_grid(ax, home_lat, home_lon, radius_degrees)
+        # Use clean radar grid background (no map tiles)
+        print("  Using clean radar grid design...")
+        self._draw_minimal_grid(ax, home_lat, home_lon, radius_degrees)
         
-        # Draw radius circles (multiple for reference)
+        # Draw neon pink radar circles (multiple for reference)
         for i in range(1, int(self.config['radius_miles']) + 1):
             circle_radius = self._miles_to_degrees(i, home_lat)
-            circle = Circle((home_lon, home_lat), circle_radius, fill=False, edgecolor=self.text_color, 
-                           alpha=0.15, linewidth=1, linestyle='--')
+            circle = Circle((home_lon, home_lat), circle_radius, fill=False, edgecolor=self.radar_color, 
+                           alpha=0.4, linewidth=2, linestyle='-')
             ax.add_patch(circle)
         
-        # Plot home location (larger star)
-        ax.plot(home_lon, home_lat, marker='*', markersize=30, color=self.home_color, 
-               zorder=1000, markeredgecolor='white', markeredgewidth=2)
+        # Plot home location as a simple pink dot
+        ax.plot(home_lon, home_lat, marker='o', markersize=15, color=self.home_color, 
+               zorder=1000, markeredgecolor=self.home_color, markeredgewidth=2)
         
         # Plot each flight with LARGER markers and CALLSIGN LABELS
         for approach in approaches:
@@ -93,7 +87,7 @@ class WallpaperGenerator:
             
             # Draw line from home to approach point
             ax.plot([home_lon, lon], [home_lat, lat], color=self.flight_color, 
-                   alpha=0.3, linewidth=1, zorder=1)
+                   alpha=0.4, linewidth=1, zorder=1)
             
             # Use airplane marker (MUCH LARGER)
             marker_size = self._get_marker_size(approach)
@@ -104,7 +98,7 @@ class WallpaperGenerator:
             # Plot airplane symbol (rotated triangle) - LARGER
             ax.plot(lon, lat, marker=(3, 0, heading - 90), markersize=marker_size, 
                    color=self.flight_color, alpha=0.9, zorder=10, 
-                   markeredgecolor='white', markeredgewidth=1.5)
+                   markeredgecolor=self.flight_color, markeredgewidth=1.5)
             
             # ADD CALLSIGN LABEL below aircraft
             if callsign:
@@ -115,8 +109,8 @@ class WallpaperGenerator:
                 ax.text(lon, lat - label_offset, callsign, 
                        fontsize=9, color=self.text_color, ha='center', va='top',
                        fontweight='bold', zorder=11,
-                       bbox=dict(boxstyle='round,pad=0.3', facecolor=self.bg_color, 
-                                edgecolor='none', alpha=0.8))
+                       bbox=dict(boxstyle='round,pad=0.3', facecolor='black', 
+                                edgecolor=self.flight_color, linewidth=1, alpha=0.9))
         
         self._add_text_info(ax, stats)
     
@@ -130,26 +124,20 @@ class WallpaperGenerator:
         ax.set_ylim(home_lat - margin, home_lat + margin)
         ax.set_aspect('equal')
         
-        # Add stylized map background
-        try:
-            print("  Adding stylized map background...")
-            ctx.add_basemap(ax, crs='EPSG:4326', source=ctx.providers.CartoDB.Voyager, alpha=0.5)
-            print("  ✓ Stylized map background loaded")
-        except Exception as e:
-            print(f"  Note: Map background unavailable: {e}")
-            print("  Continuing with clean grid design")
-            self._draw_minimal_grid(ax, home_lat, home_lon, radius_degrees)
+        # Use clean radar grid background
+        print("  Using clean radar grid design...")
+        self._draw_minimal_grid(ax, home_lat, home_lon, radius_degrees)
         
-        # Draw radius circles
+        # Draw neon pink radar circles
         for i in range(1, int(self.config['radius_miles']) + 1):
             circle_radius = self._miles_to_degrees(i, home_lat)
-            circle = Circle((home_lon, home_lat), circle_radius, fill=False, edgecolor=self.text_color,
-                           alpha=0.15, linewidth=1, linestyle='--')
+            circle = Circle((home_lon, home_lat), circle_radius, fill=False, edgecolor=self.radar_color,
+                           alpha=0.4, linewidth=2, linestyle='-')
             ax.add_patch(circle)
         
-        # Plot home location
-        ax.plot(home_lon, home_lat, marker='*', markersize=30, color=self.home_color,
-               zorder=1000, markeredgecolor='white', markeredgewidth=2)
+        # Plot home location as pink dot
+        ax.plot(home_lon, home_lat, marker='o', markersize=15, color=self.home_color,
+               zorder=1000, markeredgecolor=self.home_color, markeredgewidth=2)
         
         # Add text
         ax.text(0.5, 0.95, 'No flights detected', transform=ax.transAxes, fontsize=28,
@@ -159,10 +147,10 @@ class WallpaperGenerator:
                color=self.text_color, ha='center', va='top', alpha=0.6)
     
     def _draw_minimal_grid(self, ax, home_lat: float, home_lon: float, radius_degrees: float):
-        """Draw a minimal grid background when basemap fails"""
+        """Draw a neon pink radar grid background"""
         # Draw crosshairs
-        ax.axhline(y=home_lat, color=self.text_color, alpha=0.1, linewidth=1, linestyle='-')
-        ax.axvline(x=home_lon, color=self.text_color, alpha=0.1, linewidth=1, linestyle='-')
+        ax.axhline(y=home_lat, color=self.radar_color, alpha=0.3, linewidth=1.5, linestyle='-')
+        ax.axvline(x=home_lon, color=self.radar_color, alpha=0.3, linewidth=1.5, linestyle='-')
         
         # Draw diagonal guides
         xlim = ax.get_xlim()
@@ -170,9 +158,9 @@ class WallpaperGenerator:
         
         # Calculate diagonal lines through center
         ax.plot(xlim, [home_lat - (xlim[1]-home_lon), home_lat + (xlim[1]-home_lon)], 
-               color=self.text_color, alpha=0.1, linewidth=1, linestyle='-')
+               color=self.radar_color, alpha=0.3, linewidth=1.5, linestyle='-')
         ax.plot(xlim, [home_lat + (xlim[1]-home_lon), home_lat - (xlim[1]-home_lon)], 
-               color=self.text_color, alpha=0.1, linewidth=1, linestyle='-')
+               color=self.radar_color, alpha=0.3, linewidth=1.5, linestyle='-')
     
     def _add_text_info(self, ax, stats: Dict):
         """Add title and statistics text"""
@@ -195,7 +183,7 @@ class WallpaperGenerator:
         ax.text(0.02, 0.02, stats_text, transform=ax.transAxes, fontsize=11,
                color=self.text_color, ha='left', va='bottom', alpha=0.7, family='monospace')
         
-        legend_text = "★  Home\n✈  Aircraft"
+        legend_text = "●  Home\n✈  Aircraft"
         ax.text(0.98, 0.02, legend_text, transform=ax.transAxes, fontsize=10,
                color=self.text_color, ha='right', va='bottom', alpha=0.6)
     
