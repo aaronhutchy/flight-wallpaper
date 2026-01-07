@@ -11,14 +11,15 @@ import json
 class FlightRadar24Fetcher:
     """Fetch flight data from FlightRadar24 API"""
     
-    BASE_URL = "https://fr24api.flightradar24.com/v1"
+    BASE_URL = "https://fr24api.flightradar24.com/api"
     
     def __init__(self, api_key: str):
         self.api_key = api_key
         self.session = requests.Session()
         self.session.headers.update({
             'Authorization': f'Bearer {api_key}',
-            'Accept': 'application/json'
+            'Accept': 'application/json',
+            'Accept-Version': 'v1'
         })
     
     def get_historical_flights(
@@ -32,20 +33,22 @@ class FlightRadar24Fetcher:
     ) -> List[Dict]:
         """Fetch historical flights in a bounding box"""
         
+        url = f"{self.BASE_URL}/historic/flight-positions/full"
+        
+        # Build bounds parameter: north, south, west, east
+        bounds = f"{lat_max},{lat_min},{lon_min},{lon_max}"
+        
         print(f"Fetching FlightRadar24 data from {datetime.fromtimestamp(begin_time)} to {datetime.fromtimestamp(end_time)}")
         
-        # FR24 playback endpoint - we'll query in chunks
         flights = []
         current_time = begin_time
         chunk_size = 3600  # 1 hour chunks
         
         while current_time < end_time:
             try:
-                # FR24 playback endpoint
-                url = f"{self.BASE_URL}/playback"
                 params = {
                     'timestamp': current_time,
-                    'bounds': f"{lat_max},{lat_min},{lon_min},{lon_max}",
+                    'bounds': bounds
                 }
                 
                 response = self.session.get(url, params=params, timeout=30)
@@ -53,16 +56,10 @@ class FlightRadar24Fetcher:
                 if response.status_code == 200:
                     data = response.json()
                     
-                    # Parse FR24 response format
-                    if isinstance(data, dict):
-                        for flight_id, flight_data in data.items():
-                            if flight_id in ['full_count', 'version']:
-                                continue
-                            
-                            if isinstance(flight_data, list) and len(flight_data) >= 13:
-                                flights.append(self._parse_fr24_flight(flight_data, current_time))
-                        
-                        print(f"  ✓ Fetched {len(data) - 2} states at {datetime.fromtimestamp(current_time)}")
+                    if 'data' in data and data['data']:
+                        for flight in data['data']:
+                            flights.append(self._parse_fr24_flight(flight))
+                        print(f"  ✓ Fetched {len(data['data'])} states at {datetime.fromtimestamp(current_time)}")
                     else:
                         print(f"  - No flights at {datetime.fromtimestamp(current_time)}")
                         
@@ -80,22 +77,21 @@ class FlightRadar24Fetcher:
         print(f"Total FR24 states fetched: {len(flights)}")
         return flights
     
-    def _parse_fr24_flight(self, data: List, timestamp: int) -> Dict:
-        """Parse FR24 flight data format"""
-        # FR24 format: [lat, lon, heading, altitude, speed, squawk, radar, aircraft_type, reg, timestamp, origin, dest, flight_number, ...]
+    def _parse_fr24_flight(self, flight: Dict) -> Dict:
+        """Parse FR24 flight data"""
         return {
-            'icao24': data[11] if len(data) > 11 else None,
-            'callsign': data[13] if len(data) > 13 else None,
+            'icao24': flight.get('hex'),
+            'callsign': flight.get('callsign'),
             'origin_country': None,
-            'timestamp': timestamp,
-            'longitude': data[1] if len(data) > 1 else None,
-            'latitude': data[0] if len(data) > 0 else None,
-            'altitude': data[3] * 0.3048 if len(data) > 3 and data[3] else None,  # feet to meters
-            'on_ground': data[3] == 0 if len(data) > 3 else False,
-            'velocity': data[4] * 0.514444 if len(data) > 4 and data[4] else None,  # knots to m/s
-            'heading': data[2] if len(data) > 2 else None,
-            'vertical_rate': None,
-            'geo_altitude': data[3] * 0.3048 if len(data) > 3 and data[3] else None
+            'timestamp': int(datetime.fromisoformat(flight['timestamp'].replace('Z', '+00:00')).timestamp()) if flight.get('timestamp') else None,
+            'longitude': flight.get('lon'),
+            'latitude': flight.get('lat'),
+            'altitude': flight.get('alt') * 0.3048 if flight.get('alt') else None,  # feet to meters
+            'on_ground': flight.get('alt', 0) == 0 if flight.get('alt') is not None else False,
+            'velocity': flight.get('gspeed') * 0.514444 if flight.get('gspeed') else None,  # knots to m/s
+            'heading': flight.get('track'),
+            'vertical_rate': flight.get('vspeed') * 0.00508 if flight.get('vspeed') else None,  # ft/min to m/s
+            'geo_altitude': flight.get('alt') * 0.3048 if flight.get('alt') else None
         }
     
     def get_yesterday_flights(self, center_lat: float, center_lon: float, radius_degrees: float) -> List[Dict]:
