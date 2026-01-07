@@ -101,7 +101,6 @@ class WallpaperGenerator:
             
             lat = approach['latitude']
             lon = approach['longitude']
-            callsign = (approach.get('callsign') or '').strip()  # Handle None callsigns
             
             # Draw line from home to approach point
             ax.plot([home_lon, lon], [home_lat, lat], color=self.flight_color, 
@@ -118,16 +117,17 @@ class WallpaperGenerator:
                    color=self.flight_color, alpha=0.9, zorder=10, 
                    markeredgecolor=self.flight_color, markeredgewidth=1.5)
             
-            # ADD CALLSIGN LABEL below aircraft
-            if callsign:
+            # ADD CALLSIGN LABEL below aircraft with smart formatting
+            label = self._format_label(approach)
+            if label:
                 # Calculate offset in data coordinates for label placement
                 lat_range = ax.get_ylim()[1] - ax.get_ylim()[0]
                 label_offset = lat_range * 0.015  # Offset below aircraft
                 
-                ax.text(lon, lat - label_offset, callsign, 
-                       fontsize=9, color=self.text_color, ha='center', va='top',
+                ax.text(lon, lat - label_offset, label, 
+                       fontsize=11, color=self.text_color, ha='center', va='top',
                        fontweight='bold', zorder=11,
-                       bbox=dict(boxstyle='round,pad=0.3', facecolor='black', 
+                       bbox=dict(boxstyle='round,pad=0.4', facecolor='black', 
                                 edgecolor=self.flight_color, linewidth=1, alpha=0.9))
         
         self._add_text_info(ax, stats)
@@ -195,30 +195,54 @@ class WallpaperGenerator:
         if stats['average_altitude'] is not None:
             stats_text += f"Avg Altitude: {stats['average_altitude']:,.0f} ft"
         
-        ax.text(0.02, 0.02, stats_text, transform=ax.transAxes, fontsize=11,
+        ax.text(0.02, 0.02, stats_text, transform=ax.transAxes, fontsize=12,
                color=self.text_color, ha='left', va='bottom', alpha=0.7, family='monospace')
         
         legend_text = "●  Home\n✈  Aircraft"
-        ax.text(0.98, 0.02, legend_text, transform=ax.transAxes, fontsize=10,
+        ax.text(0.98, 0.02, legend_text, transform=ax.transAxes, fontsize=11,
                color=self.text_color, ha='right', va='bottom', alpha=0.6)
     
+    def _format_label(self, approach: Dict) -> str:
+        """Format aircraft label intelligently based on available data"""
+        callsign = (approach.get('callsign') or '').strip()
+        icao24 = approach.get('icao24', '').strip()
+        
+        if not callsign:
+            # No callsign, use registration
+            return icao24.upper() if icao24 else 'UNKNOWN'
+        
+        # Check if it's a special callsign (all letters, no numbers)
+        if callsign.isalpha():
+            return callsign.upper()
+        
+        # Try to parse airline code + flight number (e.g., "RYR9630" → "RYR 9630")
+        import re
+        match = re.match(r'^([A-Z]{2,3})(\d+.*)$', callsign.upper())
+        if match:
+            airline_code = match.group(1)
+            flight_num = match.group(2)
+            return f"{airline_code} {flight_num}"
+        
+        # Fallback to original callsign
+        return callsign.upper()
+    
     def _get_marker_size(self, approach: Dict) -> float:
-        """Calculate marker size based on altitude - MUCH LARGER for visibility"""
+        """Calculate marker size based on altitude - LARGER for better visibility"""
         altitude = approach.get('altitude')
         if altitude is None:
-            return 20  # Much larger default
+            return 28  # Larger default
         
         altitude_feet = altitude * 3.28084
         
-        # Much larger sizes for visibility
+        # Larger sizes for better visibility
         if altitude_feet < 5000:
-            return 25
+            return 32
         elif altitude_feet < 15000:
-            return 22
+            return 30
         elif altitude_feet < 30000:
-            return 20
+            return 28
         else:
-            return 18
+            return 26
     
     def _miles_to_degrees(self, miles: float, latitude: float) -> float:
         """Convert miles to approximate degrees"""
