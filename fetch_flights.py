@@ -71,7 +71,7 @@ class FlightRadar24Fetcher:
             except requests.exceptions.RequestException as e:
                 print(f"  ✗ Request failed: {e}")
             
-            time.sleep(1)  # Rate limiting
+            time.sleep(6)  # Rate limiting - 10 requests per minute
             current_time += chunk_size
         
         print(f"Total FR24 states fetched: {len(flights)}")
