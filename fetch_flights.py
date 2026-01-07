@@ -152,6 +152,48 @@ class OpenSkyFetcher:
         end_time = int(yesterday_end.timestamp())
         
         return self.get_flights_in_timerange(lat_min, lat_max, lon_min, lon_max, begin_time, end_time)
+    
+    def get_current_flights(self, center_lat: float, center_lon: float, radius_degrees: float) -> List[Dict]:
+        """Get current/live flights (no time parameter for current data)"""
+        lat_min = center_lat - radius_degrees
+        lat_max = center_lat + radius_degrees
+        lon_min = center_lon - radius_degrees
+        lon_max = center_lon + radius_degrees
+        
+        url = f"{self.BASE_URL}/states/all"
+        
+        params = {
+            'lamin': lat_min,
+            'lamax': lat_max,
+            'lomin': lon_min,
+            'lomax': lon_max
+        }
+        
+        print("Fetching current/live flight data...")
+        
+        try:
+            response = self._make_request(url, params)
+            
+            if response.status_code == 200:
+                data = response.json()
+                flights = []
+                
+                if data and 'states' in data and data['states']:
+                    current_time = data.get('time', int(time.time()))
+                    for state in data['states']:
+                        flights.append(self._parse_state_vector(state, current_time))
+                    print(f"  ✓ Fetched {len(flights)} current flight states")
+                else:
+                    print("  - No flights currently in the area")
+                    
+                return flights
+            else:
+                print(f"  ✗ Error {response.status_code}")
+                return []
+                
+        except requests.exceptions.RequestException as e:
+            print(f"  ✗ Request failed: {e}")
+            return []
 
 
 def save_flight_data(flights: List[Dict], filename: str):
