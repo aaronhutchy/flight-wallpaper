@@ -59,46 +59,64 @@ class WallpaperGenerator:
         ax.set_ylim(home_lat - margin, home_lat + margin)
         ax.set_aspect('equal')
         
-        # Add map background
+        # Add MINIMAL map background - simple grayscale street map or none
         try:
-            print("  Attempting to load map background...")
-            ctx.add_basemap(ax, crs='EPSG:4326', source=ctx.providers.Esri.WorldImagery, alpha=0.7)
-            print("  ✓ Map background loaded")
+            print("  Adding minimal map background...")
+            # Use a minimal, clean basemap style (CartoDB Positron is clean and minimal)
+            ctx.add_basemap(ax, crs='EPSG:4326', source=ctx.providers.CartoDB.Positron, alpha=0.3)
+            print("  ✓ Minimal map background loaded")
         except Exception as e:
-            print(f"  ✗ Map background failed: {e}")
-            print("  Continuing with plain background")
+            print(f"  Note: Map background unavailable: {e}")
+            print("  Continuing with clean grid design")
+            # Draw minimal grid instead
+            self._draw_minimal_grid(ax, home_lat, home_lon, radius_degrees)
         
-        # Draw radius circle
-        circle = Circle((home_lon, home_lat), radius_degrees, fill=False, edgecolor=self.text_color, 
-                       alpha=0.2, linewidth=1, linestyle='--')
-        ax.add_patch(circle)
+        # Draw radius circles (multiple for reference)
+        for i in range(1, int(self.config['radius_miles']) + 1):
+            circle_radius = self._miles_to_degrees(i, home_lat)
+            circle = Circle((home_lon, home_lat), circle_radius, fill=False, edgecolor=self.text_color, 
+                           alpha=0.15, linewidth=1, linestyle='--')
+            ax.add_patch(circle)
         
-        # Plot home location
-        ax.plot(home_lon, home_lat, marker='*', markersize=20, color=self.home_color, 
-               zorder=1000, markeredgecolor='white', markeredgewidth=1)
+        # Plot home location (larger star)
+        ax.plot(home_lon, home_lat, marker='*', markersize=30, color=self.home_color, 
+               zorder=1000, markeredgecolor='white', markeredgewidth=2)
         
-        # Plot each flight
+        # Plot each flight with LARGER markers and CALLSIGN LABELS
         for approach in approaches:
             if approach['latitude'] is None or approach['longitude'] is None:
                 continue
             
             lat = approach['latitude']
             lon = approach['longitude']
+            callsign = approach.get('callsign', '').strip()
             
             # Draw line from home to approach point
             ax.plot([home_lon, lon], [home_lat, lat], color=self.flight_color, 
-                   alpha=0.3, linewidth=0.5, zorder=1)
+                   alpha=0.3, linewidth=1, zorder=1)
             
-            # Use airplane marker
+            # Use airplane marker (MUCH LARGER)
             marker_size = self._get_marker_size(approach)
             heading = approach.get('heading', 0)
             if heading is None:
                 heading = 0
             
-            # Plot airplane symbol (rotated triangle)
-            ax.plot(lon, lat, marker=(3, 0, heading - 90), markersize=marker_size * 1.5, 
-                   color=self.flight_color, alpha=0.8, zorder=10, 
-                   markeredgecolor='white', markeredgewidth=0.5)
+            # Plot airplane symbol (rotated triangle) - LARGER
+            ax.plot(lon, lat, marker=(3, 0, heading - 90), markersize=marker_size, 
+                   color=self.flight_color, alpha=0.9, zorder=10, 
+                   markeredgecolor='white', markeredgewidth=1.5)
+            
+            # ADD CALLSIGN LABEL below aircraft
+            if callsign:
+                # Calculate offset in data coordinates for label placement
+                lat_range = ax.get_ylim()[1] - ax.get_ylim()[0]
+                label_offset = lat_range * 0.015  # Offset below aircraft
+                
+                ax.text(lon, lat - label_offset, callsign, 
+                       fontsize=9, color=self.text_color, ha='center', va='top',
+                       fontweight='bold', zorder=11,
+                       bbox=dict(boxstyle='round,pad=0.3', facecolor=self.bg_color, 
+                                edgecolor='none', alpha=0.8))
         
         self._add_text_info(ax, stats)
     
@@ -112,23 +130,26 @@ class WallpaperGenerator:
         ax.set_ylim(home_lat - margin, home_lat + margin)
         ax.set_aspect('equal')
         
-        # Add map background
+        # Add minimal map background
         try:
-            print("  Attempting to load map background...")
-            ctx.add_basemap(ax, crs='EPSG:4326', source=ctx.providers.Esri.WorldImagery, alpha=0.7)
-            print("  ✓ Map background loaded")
+            print("  Adding minimal map background...")
+            ctx.add_basemap(ax, crs='EPSG:4326', source=ctx.providers.CartoDB.Positron, alpha=0.3)
+            print("  ✓ Minimal map background loaded")
         except Exception as e:
-            print(f"  ✗ Map background failed: {e}")
-            print("  Continuing with plain background")
+            print(f"  Note: Map background unavailable: {e}")
+            print("  Continuing with clean grid design")
+            self._draw_minimal_grid(ax, home_lat, home_lon, radius_degrees)
         
-        # Draw radius circle
-        circle = Circle((home_lon, home_lat), radius_degrees, fill=False, edgecolor=self.text_color,
-                       alpha=0.2, linewidth=1, linestyle='--')
-        ax.add_patch(circle)
+        # Draw radius circles
+        for i in range(1, int(self.config['radius_miles']) + 1):
+            circle_radius = self._miles_to_degrees(i, home_lat)
+            circle = Circle((home_lon, home_lat), circle_radius, fill=False, edgecolor=self.text_color,
+                           alpha=0.15, linewidth=1, linestyle='--')
+            ax.add_patch(circle)
         
         # Plot home location
-        ax.plot(home_lon, home_lat, marker='*', markersize=20, color=self.home_color,
-               zorder=1000, markeredgecolor='white', markeredgewidth=1)
+        ax.plot(home_lon, home_lat, marker='*', markersize=30, color=self.home_color,
+               zorder=1000, markeredgecolor='white', markeredgewidth=2)
         
         # Add text
         ax.text(0.5, 0.95, 'No flights detected', transform=ax.transAxes, fontsize=28,
@@ -136,6 +157,22 @@ class WallpaperGenerator:
         
         ax.text(0.5, 0.88, 'within the search radius', transform=ax.transAxes, fontsize=16,
                color=self.text_color, ha='center', va='top', alpha=0.6)
+    
+    def _draw_minimal_grid(self, ax, home_lat: float, home_lon: float, radius_degrees: float):
+        """Draw a minimal grid background when basemap fails"""
+        # Draw crosshairs
+        ax.axhline(y=home_lat, color=self.text_color, alpha=0.1, linewidth=1, linestyle='-')
+        ax.axvline(x=home_lon, color=self.text_color, alpha=0.1, linewidth=1, linestyle='-')
+        
+        # Draw diagonal guides
+        xlim = ax.get_xlim()
+        ylim = ax.get_ylim()
+        
+        # Calculate diagonal lines through center
+        ax.plot(xlim, [home_lat - (xlim[1]-home_lon), home_lat + (xlim[1]-home_lon)], 
+               color=self.text_color, alpha=0.1, linewidth=1, linestyle='-')
+        ax.plot(xlim, [home_lat + (xlim[1]-home_lon), home_lat - (xlim[1]-home_lon)], 
+               color=self.text_color, alpha=0.1, linewidth=1, linestyle='-')
     
     def _add_text_info(self, ax, stats: Dict):
         """Add title and statistics text"""
@@ -163,21 +200,22 @@ class WallpaperGenerator:
                color=self.text_color, ha='right', va='bottom', alpha=0.6)
     
     def _get_marker_size(self, approach: Dict) -> float:
-        """Calculate marker size based on altitude"""
+        """Calculate marker size based on altitude - MUCH LARGER for visibility"""
         altitude = approach.get('altitude')
         if altitude is None:
-            return 4
+            return 20  # Much larger default
         
         altitude_feet = altitude * 3.28084
         
+        # Much larger sizes for visibility
         if altitude_feet < 5000:
-            return 6
+            return 25
         elif altitude_feet < 15000:
-            return 5
+            return 22
         elif altitude_feet < 30000:
-            return 4
+            return 20
         else:
-            return 3
+            return 18
     
     def _miles_to_degrees(self, miles: float, latitude: float) -> float:
         """Convert miles to approximate degrees"""
