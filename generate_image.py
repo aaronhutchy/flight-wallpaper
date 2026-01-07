@@ -47,10 +47,19 @@ class WallpaperGenerator:
         
         # Remove all padding to fill entire screen
         plt.subplots_adjust(left=0, right=1, top=1, bottom=0)
+        
+        # Save PNG
         plt.savefig(output_path, dpi=dpi, facecolor=self.bg_color, edgecolor='none', bbox_inches='tight', pad_inches=0)
+        
+        # Also save as JPG
+        jpg_path = output_path.replace('.png', '.jpg')
+        plt.savefig(jpg_path, dpi=dpi, facecolor=self.bg_color, edgecolor='none', bbox_inches='tight', pad_inches=0, format='jpg')
+        
         plt.close()
         
-        print(f"\n✓ Wallpaper saved to: {output_path}")
+        print(f"\n✓ Wallpaper saved to:")
+        print(f"  PNG: {output_path}")
+        print(f"  JPG: {jpg_path}")
     
     def _create_flight_wallpaper(self, ax, home_lat: float, home_lon: float, approaches: List[Dict], stats: Dict):
         """Create wallpaper with flight data"""
