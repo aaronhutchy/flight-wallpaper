@@ -66,7 +66,7 @@ class WallpaperGenerator:
         # Add map background
         try:
             print("  Attempting to load map background...")
-            ctx.add_basemap(ax, crs='EPSG:4326', source=ctx.providers.CartoDB.Positron, alpha=0.6)
+            ctx.add_basemap(ax, crs='EPSG:4326', source=ctx.providers.Esri.WorldImagery, alpha=0.7)
             print("  ✓ Map background loaded")
         except Exception as e:
             print(f"  ✗ Map background failed: {e}")
