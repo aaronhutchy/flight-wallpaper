@@ -102,12 +102,6 @@ class WallpaperGenerator:
         ax.set_xlim(home_lon - margin, home_lon + margin)
         ax.set_ylim(home_lat - margin, home_lat + margin)
         ax.set_aspect('equal')
-        def _create_empty_wallpaper(self, ax, home_lat: float, home_lon: float):
-        """Create wallpaper when no flights found"""
-        margin = 0.05
-        ax.set_xlim(home_lon - margin, home_lon + margin)
-        ax.set_ylim(home_lat - margin, home_lat + margin)
-        ax.set_aspect('equal')
         
         # Add map background
         try:
@@ -117,8 +111,6 @@ class WallpaperGenerator:
         except Exception as e:
             print(f"  ✗ Map background failed: {e}")
             print("  Continuing with plain background")
-        
-        radius_degrees = self._miles_to_degrees(self.config['radius_miles'], home_lat)
         
         radius_degrees = self._miles_to_degrees(self.config['radius_miles'], home_lat)
         circle = Circle((home_lon, home_lat), radius_degrees, fill=False, edgecolor=self.text_color,
