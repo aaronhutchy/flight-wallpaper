@@ -83,7 +83,7 @@ def main():
         radius_degrees = miles_to_degrees(radius_miles, home_lat)
         
         try:
-            flights = fetcher.get_yesterday_flights(home_lat, home_lon, radius_degrees)
+            flights = fetcher.get_current_flights(home_lat, home_lon, radius_degrees)
         except Exception as e:
             print(f"\n✗ Error fetching flights: {e}")
             print("\nTip: Use '--demo' flag to test with sample data:")
