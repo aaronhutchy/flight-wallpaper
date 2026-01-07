@@ -1,5 +1,5 @@
 """
-Fetch flight data from OpenSky Network API with OAuth2 support
+Fetch flight data from FlightRadar24 and OpenSky Network APIs
 """
 import requests
 import time
@@ -8,35 +8,129 @@ from typing import List, Dict, Optional
 import json
 
 
+class FlightRadar24Fetcher:
+    """Fetch flight data from FlightRadar24 API"""
+    
+    BASE_URL = "https://fr24api.flightradar24.com/v1"
+    
+    def __init__(self, api_key: str):
+        self.api_key = api_key
+        self.session = requests.Session()
+        self.session.headers.update({
+            'Authorization': f'Bearer {api_key}',
+            'Accept': 'application/json'
+        })
+    
+    def get_historical_flights(
+        self,
+        lat_min: float,
+        lat_max: float,
+        lon_min: float,
+        lon_max: float,
+        begin_time: int,
+        end_time: int
+    ) -> List[Dict]:
+        """Fetch historical flights in a bounding box"""
+        
+        print(f"Fetching FlightRadar24 data from {datetime.fromtimestamp(begin_time)} to {datetime.fromtimestamp(end_time)}")
+        
+        # FR24 playback endpoint - we'll query in chunks
+        flights = []
+        current_time = begin_time
+        chunk_size = 3600  # 1 hour chunks
+        
+        while current_time < end_time:
+            try:
+                # FR24 playback endpoint
+                url = f"{self.BASE_URL}/playback"
+                params = {
+                    'timestamp': current_time,
+                    'bounds': f"{lat_max},{lat_min},{lon_min},{lon_max}",
+                }
+                
+                response = self.session.get(url, params=params, timeout=30)
+                
+                if response.status_code == 200:
+                    data = response.json()
+                    
+                    # Parse FR24 response format
+                    if isinstance(data, dict):
+                        for flight_id, flight_data in data.items():
+                            if flight_id in ['full_count', 'version']:
+                                continue
+                            
+                            if isinstance(flight_data, list) and len(flight_data) >= 13:
+                                flights.append(self._parse_fr24_flight(flight_data, current_time))
+                        
+                        print(f"  ✓ Fetched {len(data) - 2} states at {datetime.fromtimestamp(current_time)}")
+                    else:
+                        print(f"  - No flights at {datetime.fromtimestamp(current_time)}")
+                        
+                elif response.status_code == 404:
+                    print(f"  - No data for {datetime.fromtimestamp(current_time)}")
+                else:
+                    print(f"  ✗ Error {response.status_code} at {datetime.fromtimestamp(current_time)}")
+                    
+            except requests.exceptions.RequestException as e:
+                print(f"  ✗ Request failed: {e}")
+            
+            time.sleep(1)  # Rate limiting
+            current_time += chunk_size
+        
+        print(f"Total FR24 states fetched: {len(flights)}")
+        return flights
+    
+    def _parse_fr24_flight(self, data: List, timestamp: int) -> Dict:
+        """Parse FR24 flight data format"""
+        # FR24 format: [lat, lon, heading, altitude, speed, squawk, radar, aircraft_type, reg, timestamp, origin, dest, flight_number, ...]
+        return {
+            'icao24': data[11] if len(data) > 11 else None,
+            'callsign': data[13] if len(data) > 13 else None,
+            'origin_country': None,
+            'timestamp': timestamp,
+            'longitude': data[1] if len(data) > 1 else None,
+            'latitude': data[0] if len(data) > 0 else None,
+            'altitude': data[3] * 0.3048 if len(data) > 3 and data[3] else None,  # feet to meters
+            'on_ground': data[3] == 0 if len(data) > 3 else False,
+            'velocity': data[4] * 0.514444 if len(data) > 4 and data[4] else None,  # knots to m/s
+            'heading': data[2] if len(data) > 2 else None,
+            'vertical_rate': None,
+            'geo_altitude': data[3] * 0.3048 if len(data) > 3 and data[3] else None
+        }
+    
+    def get_yesterday_flights(self, center_lat: float, center_lon: float, radius_degrees: float) -> List[Dict]:
+        """Get yesterday's flights"""
+        lat_min = center_lat - radius_degrees
+        lat_max = center_lat + radius_degrees
+        lon_min = center_lon - radius_degrees
+        lon_max = center_lon + radius_degrees
+        
+        now = datetime.now()
+        yesterday_start = now - timedelta(days=1)
+        yesterday_start = yesterday_start.replace(hour=0, minute=0, second=0, microsecond=0)
+        yesterday_end = yesterday_start + timedelta(days=1)
+        
+        begin_time = int(yesterday_start.timestamp())
+        end_time = int(yesterday_end.timestamp())
+        
+        return self.get_historical_flights(lat_min, lat_max, lon_min, lon_max, begin_time, end_time)
+
+
 class OpenSkyFetcher:
-    """Handles fetching flight data from OpenSky Network API"""
+    """Fetch flight data from OpenSky Network API"""
     
     BASE_URL = "https://opensky-network.org/api"
     TOKEN_URL = "https://auth.opensky-network.org/auth/realms/opensky-network/protocol/openid-connect/token"
     
-    def __init__(self, client_id: Optional[str] = None, client_secret: Optional[str] = None, 
-                 username: Optional[str] = None, password: Optional[str] = None):
-        """
-        Initialize the OpenSky API client
-        
-        Args:
-            client_id: OAuth2 client ID (for new accounts)
-            client_secret: OAuth2 client secret (for new accounts)
-            username: Username (legacy accounts only)
-            password: Password (legacy accounts only)
-        """
+    def __init__(self, client_id: Optional[str] = None, client_secret: Optional[str] = None):
         self.session = requests.Session()
         self.access_token = None
         
-        # Try OAuth2 first (new authentication method)
         if client_id and client_secret:
             self.client_id = client_id
             self.client_secret = client_secret
             self._get_oauth_token()
-        # Fall back to basic auth (legacy)
-        elif username and password:
-            self.session.auth = (username, password)
-        
+    
     def _get_oauth_token(self):
         """Get OAuth2 access token"""
         try:
@@ -53,37 +147,41 @@ class OpenSkyFetcher:
             
             if response.status_code == 200:
                 self.access_token = response.json()['access_token']
-                print("  ✓ OAuth2 authentication successful")
+                print("  ✓ OpenSky OAuth2 authentication successful")
             else:
-                print(f"  ✗ OAuth2 authentication failed: {response.status_code}")
+                print(f"  ✗ OpenSky OAuth2 failed: {response.status_code}")
                 
         except Exception as e:
-            print(f"  ✗ OAuth2 token request failed: {e}")
+            print(f"  ✗ OpenSky OAuth2 failed: {e}")
     
     def _make_request(self, url, params):
         """Make authenticated request"""
         headers = {}
         if self.access_token:
             headers['Authorization'] = f'Bearer {self.access_token}'
-            
         return self.session.get(url, params=params, headers=headers, timeout=30)
+    
+    def get_yesterday_flights(self, center_lat: float, center_lon: float, radius_degrees: float) -> List[Dict]:
+        """Get yesterday's flights from OpenSky"""
+        lat_min = center_lat - radius_degrees
+        lat_max = center_lat + radius_degrees
+        lon_min = center_lon - radius_degrees
+        lon_max = center_lon + radius_degrees
         
-    def get_flights_in_timerange(
-        self,
-        lat_min: float,
-        lat_max: float,
-        lon_min: float,
-        lon_max: float,
-        begin_time: int,
-        end_time: int
-    ) -> List[Dict]:
-        """Fetch all flights in a bounding box for a given time range"""
+        now = datetime.now()
+        yesterday_start = now - timedelta(days=1)
+        yesterday_start = yesterday_start.replace(hour=0, minute=0, second=0, microsecond=0)
+        yesterday_end = yesterday_start + timedelta(days=1)
+        
+        begin_time = int(yesterday_start.timestamp())
+        end_time = int(yesterday_end.timestamp())
+        
         url = f"{self.BASE_URL}/states/all"
         flights = []
-        chunk_size = 600  # 10 minutes
         current_time = begin_time
+        chunk_size = 600
         
-        print(f"Fetching flight data from {datetime.fromtimestamp(begin_time)} to {datetime.fromtimestamp(end_time)}")
+        print(f"Fetching OpenSky data from {datetime.fromtimestamp(begin_time)} to {datetime.fromtimestamp(end_time)}")
         
         while current_time < end_time:
             params = {
@@ -106,21 +204,21 @@ class OpenSkyFetcher:
                     else:
                         print(f"  - No flights at {datetime.fromtimestamp(current_time)}")
                 elif response.status_code == 404:
-                    print(f"  - No data available for {datetime.fromtimestamp(current_time)}")
+                    print(f"  - No data for {datetime.fromtimestamp(current_time)}")
                 else:
-                    print(f"  ✗ Error {response.status_code} at {datetime.fromtimestamp(current_time)}")
+                    print(f"  ✗ Error {response.status_code}")
                     
             except requests.exceptions.RequestException as e:
                 print(f"  ✗ Request failed: {e}")
             
             time.sleep(1)
             current_time += chunk_size
-            
-        print(f"Total states fetched: {len(flights)}")
+        
+        print(f"Total OpenSky states fetched: {len(flights)}")
         return flights
     
     def _parse_state_vector(self, state: List, timestamp: int) -> Dict:
-        """Parse a state vector from OpenSky API"""
+        """Parse OpenSky state vector"""
         return {
             'icao24': state[0],
             'callsign': state[1].strip() if state[1] else None,
@@ -135,65 +233,6 @@ class OpenSkyFetcher:
             'vertical_rate': state[11],
             'geo_altitude': state[13]
         }
-    
-    def get_yesterday_flights(self, center_lat: float, center_lon: float, radius_degrees: float) -> List[Dict]:
-        """Convenience method to get yesterday's flights"""
-        lat_min = center_lat - radius_degrees
-        lat_max = center_lat + radius_degrees
-        lon_min = center_lon - radius_degrees
-        lon_max = center_lon + radius_degrees
-        
-        now = datetime.now()
-        yesterday_start = now - timedelta(days=1)
-        yesterday_start = yesterday_start.replace(hour=0, minute=0, second=0, microsecond=0)
-        yesterday_end = yesterday_start + timedelta(days=1)
-        
-        begin_time = int(yesterday_start.timestamp())
-        end_time = int(yesterday_end.timestamp())
-        
-        return self.get_flights_in_timerange(lat_min, lat_max, lon_min, lon_max, begin_time, end_time)
-    
-    def get_current_flights(self, center_lat: float, center_lon: float, radius_degrees: float) -> List[Dict]:
-        """Get current/live flights (no time parameter for current data)"""
-        lat_min = center_lat - radius_degrees
-        lat_max = center_lat + radius_degrees
-        lon_min = center_lon - radius_degrees
-        lon_max = center_lon + radius_degrees
-        
-        url = f"{self.BASE_URL}/states/all"
-        
-        params = {
-            'lamin': lat_min,
-            'lamax': lat_max,
-            'lomin': lon_min,
-            'lomax': lon_max
-        }
-        
-        print("Fetching current/live flight data...")
-        
-        try:
-            response = self._make_request(url, params)
-            
-            if response.status_code == 200:
-                data = response.json()
-                flights = []
-                
-                if data and 'states' in data and data['states']:
-                    current_time = data.get('time', int(time.time()))
-                    for state in data['states']:
-                        flights.append(self._parse_state_vector(state, current_time))
-                    print(f"  ✓ Fetched {len(flights)} current flight states")
-                else:
-                    print("  - No flights currently in the area")
-                    
-                return flights
-            else:
-                print(f"  ✗ Error {response.status_code}")
-                return []
-                
-        except requests.exceptions.RequestException as e:
-            print(f"  ✗ Request failed: {e}")
-            return []
 
 
 def save_flight_data(flights: List[Dict], filename: str):

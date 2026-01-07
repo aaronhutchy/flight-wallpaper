@@ -8,7 +8,6 @@ import argparse
 from datetime import datetime
 from pathlib import Path
 
-from fetch_flights import OpenSkyFetcher, save_flight_data
 from process_data import FlightProcessor, miles_to_degrees
 from generate_image import WallpaperGenerator
 from demo_data import generate_sample_flights, create_sample_scenario
@@ -60,50 +59,52 @@ def main():
     else:
         print("Initializing API client...")
         
-        # Check for OpenSky credentials (OAuth2 or legacy)
-        client_id = config.get('opensky', {}).get('client_id')
-        client_secret = config.get('opensky', {}).get('client_secret')
-        username = config.get('opensky', {}).get('username')
-        password = config.get('opensky', {}).get('password')
-        
-        if client_id and client_secret:
-            print(f"  Using OAuth2 authenticated access")
-            fetcher = OpenSkyFetcher(client_id=client_id, client_secret=client_secret)
-        elif username and password:
-            print(f"  Using basic auth (legacy)")
-            fetcher = OpenSkyFetcher(username=username, password=password)
+        # Try FlightRadar24 first (better coverage)
+        fr24_config = config.get('flightradar24', {})
+        if fr24_config.get('enabled') and fr24_config.get('api_key'):
+            print("  Using FlightRadar24 API")
+            from fetch_flights import FlightRadar24Fetcher
+            fetcher = FlightRadar24Fetcher(fr24_config['api_key'])
         else:
-            print("  Using anonymous access")
-            fetcher = OpenSkyFetcher()
+            # Fall back to OpenSky
+            print("  Using OpenSky Network API")
+            from fetch_flights import OpenSkyFetcher
+            client_id = config.get('opensky', {}).get('client_id')
+            client_secret = config.get('opensky', {}).get('client_secret')
+            fetcher = OpenSkyFetcher(client_id, client_secret)
         
         print()
-        print("Fetching flight data from OpenSky Network...")
+        print("Fetching flight data...")
         print("  This may take a few minutes...\n")
         
         radius_degrees = miles_to_degrees(radius_miles, home_lat)
         
         try:
-            flights = fetcher.get_current_flights(home_lat, home_lon, radius_degrees)
+            flights = fetcher.get_yesterday_flights(home_lat, home_lon, radius_degrees)
         except Exception as e:
             print(f"\n✗ Error fetching flights: {e}")
-            print("\nTip: Use '--demo' flag to test with sample data:")
+            print("\nTip: Use '--demo' flag to test:")
             print("  python main.py --demo")
             sys.exit(1)
+        
+        # Save flight data
+        from fetch_flights import save_flight_data
+        data_dir = Path('data')
+        data_dir.mkdir(exist_ok=True)
+        
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        data_file = data_dir / f'flights_{timestamp}.json'
+        save_flight_data(flights, str(data_file))
+        print()
     
-    data_dir = Path('data')
-    data_dir.mkdir(exist_ok=True)
-    
-    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-    data_file = data_dir / f'flights_{timestamp}.json'
-    save_flight_data(flights, str(data_file))
-    print()
-    
+    # Process flights
     print("Processing flight data...")
     processor = FlightProcessor(home_lat, home_lon, radius_miles)
     approaches = processor.process_flights(flights)
     stats = processor.get_statistics(approaches)
     print()
     
+    # Print statistics
     print("Statistics:")
     print(f"  Total aircraft: {stats['total_aircraft']}")
     if stats['total_aircraft'] > 0:
@@ -115,10 +116,12 @@ def main():
             print(f"  Average altitude: {stats['average_altitude']:,.0f} ft")
     print()
     
+    # Generate wallpaper
     print("Generating wallpaper...")
     output_dir = Path('output')
     output_dir.mkdir(exist_ok=True)
     
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
     suffix = '_demo' if args.demo else ''
     output_file = output_dir / f'wallpaper_{timestamp}{suffix}.png'
     

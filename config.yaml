@@ -2,11 +2,21 @@
 
 # Your home location (latitude, longitude)
 home_location:
-  lat: 53.192781  # Replace with your latitude
-  lon: 0.469602  # Replace with your longitude
+  lat: 53.2307  # Your latitude
+  lon: -0.5406  # Your longitude
 
 # Search radius in miles
 radius_miles: 5.0
+
+# FlightRadar24 API (recommended for best coverage)
+flightradar24:
+  enabled: true
+  api_key: "019b99a5-6562-727e-b68e-d00f48f48a73|Px4SRbvxmwCTbdC41eaBL8ynCXHiP1IFBU1cMxykea4532c1"
+
+# OpenSky Network (free, but limited coverage)
+opensky:
+  client_id: "aaronhutchy-api-client"
+  client_secret: "INnOY9oqCNyaYLt9TC5KmbzMYKGqZPJ5"
 
 # Image settings
 image:
