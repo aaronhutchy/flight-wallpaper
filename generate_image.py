@@ -98,7 +98,7 @@ class WallpaperGenerator:
     
     def _create_empty_wallpaper(self, ax, home_lat: float, home_lon: float):
         """Create wallpaper when no flights found"""
-        margin = 0.05
+        margin = 0.15
         ax.set_xlim(home_lon - margin, home_lon + margin)
         ax.set_ylim(home_lat - margin, home_lat + margin)
         ax.set_aspect('equal')
