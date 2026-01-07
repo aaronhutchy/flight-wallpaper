@@ -3,7 +3,7 @@
 # Your home location (latitude, longitude)
 home_location:
   lat: 53.192780  # Your latitude
-  lon: 0.469602  # Your longitude
+  lon: -0.469602  # Your longitude
 
 # Search radius in miles
 radius_miles: 5.0
