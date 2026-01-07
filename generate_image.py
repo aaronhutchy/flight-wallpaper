@@ -101,7 +101,7 @@ class WallpaperGenerator:
             
             lat = approach['latitude']
             lon = approach['longitude']
-            callsign = approach.get('callsign', '').strip()
+            callsign = (approach.get('callsign') or '').strip()  # Handle None callsigns
             
             # Draw line from home to approach point
             ax.plot([home_lon, lon], [home_lat, lat], color=self.flight_color, 
