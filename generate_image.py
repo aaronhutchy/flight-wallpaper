@@ -65,9 +65,12 @@ class WallpaperGenerator:
         
         # Add map background
         try:
+            print("  Attempting to load map background...")
             ctx.add_basemap(ax, crs='EPSG:4326', source=ctx.providers.CartoDB.DarkMatter, alpha=0.5)
-        except:
-            pass  # If map fails, continue with plain background
+            print("  ✓ Map background loaded")
+        except Exception as e:
+            print(f"  ✗ Map background failed: {e}")
+            print("  Continuing with plain background")
         
         radius_degrees = self._miles_to_degrees(self.config['radius_miles'], home_lat)
         circle = Circle((home_lon, home_lat), radius_degrees, fill=False, edgecolor=self.text_color, 
