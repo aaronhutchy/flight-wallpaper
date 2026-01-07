@@ -54,12 +54,20 @@ class WallpaperGenerator:
     
     def _create_flight_wallpaper(self, ax, home_lat: float, home_lon: float, approaches: List[Dict], stats: Dict):
         """Create wallpaper with flight data"""
-        # Fixed view: always center on home with radius-based bounds
+        # Fixed view optimized for PORTRAIT phone (tall, narrow)
         radius_degrees = self._miles_to_degrees(self.config['radius_miles'], home_lat)
-        margin = radius_degrees * 1.05  # Minimal margin for full screen fill
         
-        ax.set_xlim(home_lon - margin, home_lon + margin)
-        ax.set_ylim(home_lat - margin, home_lat + margin)
+        # Phone aspect ratio: height=2316, width=1080 → tall and narrow
+        # To fill screen: show MORE vertically, crop sides
+        
+        # Set vertical span to fill height  
+        v_margin = radius_degrees * 1.05
+        
+        # Set horizontal span narrower to crop left/right edges
+        h_margin = v_margin * 0.47  # Crop sides for portrait
+        
+        ax.set_xlim(home_lon - h_margin, home_lon + h_margin)
+        ax.set_ylim(home_lat - v_margin, home_lat + v_margin)
         ax.set_aspect('equal')
         
         # Use clean radar grid background (no map tiles)
@@ -117,12 +125,17 @@ class WallpaperGenerator:
     
     def _create_empty_wallpaper(self, ax, home_lat: float, home_lon: float):
         """Create wallpaper when no flights found"""
-        # Fixed view: same as flight wallpaper
+        # Fixed view optimized for PORTRAIT phone (tall, narrow)
         radius_degrees = self._miles_to_degrees(self.config['radius_miles'], home_lat)
-        margin = radius_degrees * 1.05  # Minimal margin for full screen fill
         
-        ax.set_xlim(home_lon - margin, home_lon + margin)
-        ax.set_ylim(home_lat - margin, home_lat + margin)
+        # Set vertical span to fill height
+        v_margin = radius_degrees * 1.05
+        
+        # Set horizontal span narrower to crop sides
+        h_margin = v_margin * 0.47
+        
+        ax.set_xlim(home_lon - h_margin, home_lon + h_margin)
+        ax.set_ylim(home_lat - v_margin, home_lat + v_margin)
         ax.set_aspect('equal')
         
         # Use clean radar grid background
