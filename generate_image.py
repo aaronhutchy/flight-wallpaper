@@ -6,6 +6,7 @@ from matplotlib.patches import Circle
 from datetime import datetime
 from typing import List, Dict
 import numpy as np
+import contextily as ctx
 
 
 class WallpaperGenerator:
@@ -61,6 +62,12 @@ class WallpaperGenerator:
         ax.set_xlim(min(lons) - lon_margin, max(lons) + lon_margin)
         ax.set_ylim(min(lats) - lat_margin, max(lats) + lat_margin)
         ax.set_aspect('equal')
+        
+        # Add map background
+        try:
+            ctx.add_basemap(ax, crs='EPSG:4326', source=ctx.providers.CartoDB.DarkMatter, alpha=0.5)
+        except:
+            pass  # If map fails, continue with plain background
         
         radius_degrees = self._miles_to_degrees(self.config['radius_miles'], home_lat)
         circle = Circle((home_lon, home_lat), radius_degrees, fill=False, edgecolor=self.text_color, 
