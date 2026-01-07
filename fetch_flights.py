@@ -207,7 +207,7 @@ class OpenSkyFetcher:
             except requests.exceptions.RequestException as e:
                 print(f"  ✗ Request failed: {e}")
             
-            time.sleep(1)
+            time.sleep(6)  # Rate limiting - 10 requests per minute = 6 second spacing
             current_time += chunk_size
         
         print(f"Total OpenSky states fetched: {len(flights)}")
