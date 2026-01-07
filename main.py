@@ -10,6 +10,7 @@ from pathlib import Path
 
 from process_data import FlightProcessor, miles_to_degrees
 from generate_image import WallpaperGenerator
+from enrich_flights import enrich_with_routes
 from demo_data import generate_sample_flights, create_sample_scenario
 
 
@@ -32,6 +33,7 @@ def main():
     parser.add_argument('--demo', action='store_true', help='Use demo data instead of fetching from API')
     parser.add_argument('--scenario', default='normal', choices=['normal', 'busy', 'quiet', 'overnight'],
                        help='Demo scenario (only with --demo)')
+    parser.add_argument('--no-routes', action='store_true', help='Skip fetching origin/destination data')
     args = parser.parse_args()
     
     print("=" * 60)
@@ -65,6 +67,7 @@ def main():
             print("  Using FlightRadar24 API")
             from fetch_flights import FlightRadar24Fetcher
             fetcher = FlightRadar24Fetcher(fr24_config['api_key'])
+            api_key = fr24_config['api_key']
         else:
             # Fall back to OpenSky
             print("  Using OpenSky Network API")
@@ -72,6 +75,7 @@ def main():
             client_id = config.get('opensky', {}).get('client_id')
             client_secret = config.get('opensky', {}).get('client_secret')
             fetcher = OpenSkyFetcher(client_id, client_secret)
+            api_key = None
         
         print()
         print("Fetching flight data...")
@@ -104,6 +108,15 @@ def main():
     stats = processor.get_statistics(approaches)
     print()
     
+    # Enrich with origin/destination (unless disabled)
+    if not args.no_routes and not args.demo:
+        fr24_config = config.get('flightradar24', {})
+        if fr24_config.get('enabled') and fr24_config.get('api_key'):
+            approaches = enrich_with_routes(approaches, fr24_config['api_key'])
+        else:
+            print("Note: Origin/destination data requires FlightRadar24 API")
+            print()
+    
     # Print statistics
     print("Statistics:")
     print(f"  Total aircraft: {stats['total_aircraft']}")
@@ -133,13 +146,14 @@ def main():
     print("✓ Complete!")
     print("=" * 60)
     print(f"\nYour wallpaper is ready: {output_file}")
+    print(f"Also saved as: {str(output_file).replace('.png', '.jpg')}")
     if args.demo:
         print("\nThis was generated with sample data.")
         print("To use real flight data, run without --demo flag:")
         print("  python main.py")
     print("\nNext steps:")
-    print("  1. View the image in the output/ directory")
-    print("  2. Set it as your desktop wallpaper")
+    print("  1. View the images in the output/ directory")
+    print("  2. Set as your phone wallpaper")
     print("  3. Run this script daily for fresh wallpapers!")
     print()
 

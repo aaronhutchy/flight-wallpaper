@@ -205,26 +205,40 @@ class WallpaperGenerator:
     def _format_label(self, approach: Dict) -> str:
         """Format aircraft label intelligently based on available data"""
         callsign = (approach.get('callsign') or '').strip()
+        origin = approach.get('origin', '').strip()
+        destination = approach.get('destination', '').strip()
         icao24 = approach.get('icao24', '').strip()
         
+        # Build label with flight number and route
+        label_parts = []
+        
+        # Line 1: Flight number/callsign
         if not callsign:
-            # No callsign, use registration
-            return icao24.upper() if icao24 else 'UNKNOWN'
+            flight_label = icao24.upper() if icao24 else 'UNKNOWN'
+        elif callsign.isalpha():
+            flight_label = callsign.upper()  # Special callsigns like REDARROW
+        else:
+            # Parse airline code + flight number (e.g., "RYR9630" → "RYR 9630")
+            import re
+            match = re.match(r'^([A-Z]{2,3})(\d+.*)$', callsign.upper())
+            if match:
+                airline_code = match.group(1)
+                flight_num = match.group(2)
+                flight_label = f"{airline_code} {flight_num}"
+            else:
+                flight_label = callsign.upper()
         
-        # Check if it's a special callsign (all letters, no numbers)
-        if callsign.isalpha():
-            return callsign.upper()
+        label_parts.append(flight_label)
         
-        # Try to parse airline code + flight number (e.g., "RYR9630" → "RYR 9630")
-        import re
-        match = re.match(r'^([A-Z]{2,3})(\d+.*)$', callsign.upper())
-        if match:
-            airline_code = match.group(1)
-            flight_num = match.group(2)
-            return f"{airline_code} {flight_num}"
+        # Line 2: Route (if available)
+        if origin and destination:
+            label_parts.append(f"{origin} → {destination}")
+        elif origin:
+            label_parts.append(f"{origin} → ?")
+        elif destination:
+            label_parts.append(f"? → {destination}")
         
-        # Fallback to original callsign
-        return callsign.upper()
+        return '\n'.join(label_parts)
     
     def _get_marker_size(self, approach: Dict) -> float:
         """Calculate marker size based on altitude - LARGER for better visibility"""
