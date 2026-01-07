@@ -45,8 +45,9 @@ class WallpaperGenerator:
         ax.spines['bottom'].set_visible(False)
         ax.spines['left'].set_visible(False)
         
-        plt.tight_layout(pad=0)
-        plt.savefig(output_path, dpi=dpi, facecolor=self.bg_color, edgecolor='none')
+        # Remove all padding to fill entire screen
+        plt.subplots_adjust(left=0, right=1, top=1, bottom=0)
+        plt.savefig(output_path, dpi=dpi, facecolor=self.bg_color, edgecolor='none', bbox_inches='tight', pad_inches=0)
         plt.close()
         
         print(f"\n✓ Wallpaper saved to: {output_path}")
@@ -55,7 +56,7 @@ class WallpaperGenerator:
         """Create wallpaper with flight data"""
         # Fixed view: always center on home with radius-based bounds
         radius_degrees = self._miles_to_degrees(self.config['radius_miles'], home_lat)
-        margin = radius_degrees * 1.2  # 20% extra margin around the search radius
+        margin = radius_degrees * 1.05  # Minimal margin for full screen fill
         
         ax.set_xlim(home_lon - margin, home_lon + margin)
         ax.set_ylim(home_lat - margin, home_lat + margin)
@@ -118,7 +119,7 @@ class WallpaperGenerator:
         """Create wallpaper when no flights found"""
         # Fixed view: same as flight wallpaper
         radius_degrees = self._miles_to_degrees(self.config['radius_miles'], home_lat)
-        margin = radius_degrees * 1.2
+        margin = radius_degrees * 1.05  # Minimal margin for full screen fill
         
         ax.set_xlim(home_lon - margin, home_lon + margin)
         ax.set_ylim(home_lat - margin, home_lat + margin)
