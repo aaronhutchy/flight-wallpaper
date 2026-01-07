@@ -63,7 +63,6 @@ class FlightProcessor:
         result['last_seen'] = max(s['timestamp'] for s in flight_states)
         
         return result
-    
     def process_flights(self, flights: List[Dict]) -> List[Dict]:
         """Complete processing pipeline"""
         print(f"\nProcessing {len(flights)} flight states...")
@@ -85,4 +84,48 @@ class FlightProcessor:
         
         closest_approaches.sort(key=lambda x: x['distance_to_home'])
         
-print(f"Identified {len(closest_approaches)} aircraft with closest approaches")
+        print(f"Identified {len(closest_approaches)} aircraft with closest approaches")
+        
+        return closest_approaches
+    
+    def get_statistics(self, approaches: List[Dict]) -> Dict:
+        """Calculate statistics about the flights"""
+        if not approaches:
+            return {
+                'total_aircraft': 0,
+                'closest_distance': None,
+                'furthest_distance': None,
+                'average_distance': None,
+                'min_altitude': None,
+                'max_altitude': None,
+                'average_altitude': None
+            }
+        
+        distances = [a['distance_to_home'] for a in approaches]
+        altitudes = [a['altitude'] for a in approaches if a['altitude'] is not None]
+        
+        stats = {
+            'total_aircraft': len(approaches),
+            'closest_distance': min(distances),
+            'furthest_distance': max(distances),
+            'average_distance': sum(distances) / len(distances),
+        }
+        
+        if altitudes:
+            altitudes_feet = [alt * 3.28084 for alt in altitudes]
+            stats['min_altitude'] = min(altitudes_feet)
+            stats['max_altitude'] = max(altitudes_feet)
+            stats['average_altitude'] = sum(altitudes_feet) / len(altitudes_feet)
+        else:
+            stats['min_altitude'] = None
+            stats['max_altitude'] = None
+            stats['average_altitude'] = None
+        
+        return stats
+
+
+def miles_to_degrees(miles: float, latitude: float) -> float:
+    """Convert miles to degrees (approximate)"""
+    lat_degrees = miles / 69.0
+    lon_degrees = miles / (69.0 * math.cos(math.radians(latitude)))
+    return max(lat_degrees, lon_degrees)
