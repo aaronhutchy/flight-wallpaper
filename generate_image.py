@@ -51,59 +51,10 @@ class WallpaperGenerator:
     
     def _create_flight_wallpaper(self, ax, home_lat: float, home_lon: float, approaches: List[Dict], stats: Dict):
         """Create wallpaper with flight data"""
-        lats = [a['latitude'] for a in approaches if a['latitude']]
-        lons = [a['longitude'] for a in approaches if a['longitude']]
-        lats.append(home_lat)
-        lons.append(home_lon)
-        
-        lat_margin = (max(lats) - min(lats)) * 0.2
-        lon_margin = (max(lons) - min(lons)) * 0.2
-        
-        ax.set_xlim(min(lons) - lon_margin, max(lons) + lon_margin)
-        ax.set_ylim(min(lats) - lat_margin, max(lats) + lat_margin)
-        ax.set_aspect('equal')
-        
-        # Add map background
-        try:
-            print("  Attempting to load map background...")
-            ctx.add_basemap(ax, crs='EPSG:4326', source=ctx.providers.Esri.WorldImagery, alpha=0.7)
-            print("  ✓ Map background loaded")
-        except Exception as e:
-            print(f"  ✗ Map background failed: {e}")
-            print("  Continuing with plain background")
-        
+        # Fixed view: always center on home with radius-based bounds
         radius_degrees = self._miles_to_degrees(self.config['radius_miles'], home_lat)
-        circle = Circle((home_lon, home_lat), radius_degrees, fill=False, edgecolor=self.text_color, 
-                       alpha=0.2, linewidth=1, linestyle='--')
-        ax.add_patch(circle)
+        margin = radius_degrees * 1.2  # 20% extra margin around the search radius
         
-        ax.plot(home_lon, home_lat, marker='*', markersize=20, color=self.home_color, 
-               zorder=1000, markeredgecolor='white', markeredgewidth=1)
-        
-        for approach in approaches:
-            if approach['latitude'] is None or approach['longitude'] is None:
-                continue
-            
-            lat = approach['latitude']
-            lon = approach['longitude']
-            
-            ax.plot([home_lon, lon], [home_lat, lat], color=self.flight_color, 
-                   alpha=0.3, linewidth=0.5, zorder=1)
-            
-            # Use airplane marker
-            marker_size = self._get_marker_size(approach)
-            heading = approach.get('heading', 0) or 0  # Get heading, default to 0 if None
-            
-            # Plot airplane symbol (rotated triangle)
-            ax.plot(lon, lat, marker=(3, 0, heading - 90), markersize=marker_size * 1.5, 
-                   color=self.flight_color, alpha=0.8, zorder=10, 
-                   markeredgecolor='white', markeredgewidth=0.5)
-        
-        self._add_text_info(ax, stats)
-    
-    def _create_empty_wallpaper(self, ax, home_lat: float, home_lon: float):
-        """Create wallpaper when no flights found"""
-        margin = 0.15
         ax.set_xlim(home_lon - margin, home_lon + margin)
         ax.set_ylim(home_lat - margin, home_lat + margin)
         ax.set_aspect('equal')
@@ -117,14 +68,69 @@ class WallpaperGenerator:
             print(f"  ✗ Map background failed: {e}")
             print("  Continuing with plain background")
         
+        # Draw radius circle
+        circle = Circle((home_lon, home_lat), radius_degrees, fill=False, edgecolor=self.text_color, 
+                       alpha=0.2, linewidth=1, linestyle='--')
+        ax.add_patch(circle)
+        
+        # Plot home location
+        ax.plot(home_lon, home_lat, marker='*', markersize=20, color=self.home_color, 
+               zorder=1000, markeredgecolor='white', markeredgewidth=1)
+        
+        # Plot each flight
+        for approach in approaches:
+            if approach['latitude'] is None or approach['longitude'] is None:
+                continue
+            
+            lat = approach['latitude']
+            lon = approach['longitude']
+            
+            # Draw line from home to approach point
+            ax.plot([home_lon, lon], [home_lat, lat], color=self.flight_color, 
+                   alpha=0.3, linewidth=0.5, zorder=1)
+            
+            # Use airplane marker
+            marker_size = self._get_marker_size(approach)
+            heading = approach.get('heading', 0)
+            if heading is None:
+                heading = 0
+            
+            # Plot airplane symbol (rotated triangle)
+            ax.plot(lon, lat, marker=(3, 0, heading - 90), markersize=marker_size * 1.5, 
+                   color=self.flight_color, alpha=0.8, zorder=10, 
+                   markeredgecolor='white', markeredgewidth=0.5)
+        
+        self._add_text_info(ax, stats)
+    
+    def _create_empty_wallpaper(self, ax, home_lat: float, home_lon: float):
+        """Create wallpaper when no flights found"""
+        # Fixed view: same as flight wallpaper
         radius_degrees = self._miles_to_degrees(self.config['radius_miles'], home_lat)
+        margin = radius_degrees * 1.2
+        
+        ax.set_xlim(home_lon - margin, home_lon + margin)
+        ax.set_ylim(home_lat - margin, home_lat + margin)
+        ax.set_aspect('equal')
+        
+        # Add map background
+        try:
+            print("  Attempting to load map background...")
+            ctx.add_basemap(ax, crs='EPSG:4326', source=ctx.providers.Esri.WorldImagery, alpha=0.7)
+            print("  ✓ Map background loaded")
+        except Exception as e:
+            print(f"  ✗ Map background failed: {e}")
+            print("  Continuing with plain background")
+        
+        # Draw radius circle
         circle = Circle((home_lon, home_lat), radius_degrees, fill=False, edgecolor=self.text_color,
                        alpha=0.2, linewidth=1, linestyle='--')
         ax.add_patch(circle)
         
+        # Plot home location
         ax.plot(home_lon, home_lat, marker='*', markersize=20, color=self.home_color,
                zorder=1000, markeredgecolor='white', markeredgewidth=1)
         
+        # Add text
         ax.text(0.5, 0.95, 'No flights detected', transform=ax.transAxes, fontsize=28,
                color=self.text_color, ha='center', va='top', fontweight='light')
         
@@ -152,7 +158,7 @@ class WallpaperGenerator:
         ax.text(0.02, 0.02, stats_text, transform=ax.transAxes, fontsize=11,
                color=self.text_color, ha='left', va='bottom', alpha=0.7, family='monospace')
         
-        legend_text = "★  Home\n●  Closest approach"
+        legend_text = "★  Home\n✈  Aircraft"
         ax.text(0.98, 0.02, legend_text, transform=ax.transAxes, fontsize=10,
                color=self.text_color, ha='right', va='bottom', alpha=0.6)
     
