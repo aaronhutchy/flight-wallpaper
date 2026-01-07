@@ -59,12 +59,12 @@ class WallpaperGenerator:
         ax.set_ylim(home_lat - margin, home_lat + margin)
         ax.set_aspect('equal')
         
-        # Add watercolor artistic map background
+        # Add stylized map background
         try:
-            print("  Adding watercolor map background...")
-            # Use Stamen Watercolor for artistic painted look
-            ctx.add_basemap(ax, crs='EPSG:4326', source=ctx.providers.Stamen.Watercolor, alpha=0.6)
-            print("  ✓ Watercolor map background loaded")
+            print("  Adding stylized map background...")
+            # Use CartoDB Voyager for colorful, modern look (more reliable than Watercolor)
+            ctx.add_basemap(ax, crs='EPSG:4326', source=ctx.providers.CartoDB.Voyager, alpha=0.5)
+            print("  ✓ Stylized map background loaded")
         except Exception as e:
             print(f"  Note: Map background unavailable: {e}")
             print("  Continuing with clean grid design")
@@ -130,11 +130,11 @@ class WallpaperGenerator:
         ax.set_ylim(home_lat - margin, home_lat + margin)
         ax.set_aspect('equal')
         
-        # Add watercolor artistic map background
+        # Add stylized map background
         try:
-            print("  Adding watercolor map background...")
-            ctx.add_basemap(ax, crs='EPSG:4326', source=ctx.providers.Stamen.Watercolor, alpha=0.6)
-            print("  ✓ Watercolor map background loaded")
+            print("  Adding stylized map background...")
+            ctx.add_basemap(ax, crs='EPSG:4326', source=ctx.providers.CartoDB.Voyager, alpha=0.5)
+            print("  ✓ Stylized map background loaded")
         except Exception as e:
             print(f"  Note: Map background unavailable: {e}")
             print("  Continuing with clean grid design")
