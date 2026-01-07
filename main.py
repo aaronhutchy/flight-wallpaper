@@ -10,7 +10,6 @@ from pathlib import Path
 
 from process_data import FlightProcessor, miles_to_degrees
 from generate_image import WallpaperGenerator
-from enrich_flights import enrich_with_routes
 from demo_data import generate_sample_flights, create_sample_scenario
 
 
@@ -108,14 +107,8 @@ def main():
     stats = processor.get_statistics(approaches)
     print()
     
-    # Enrich with origin/destination (unless disabled)
-    if not args.no_routes and not args.demo:
-        fr24_config = config.get('flightradar24', {})
-        if fr24_config.get('enabled') and fr24_config.get('api_key'):
-            approaches = enrich_with_routes(approaches, fr24_config['api_key'])
-        else:
-            print("Note: Origin/destination data requires FlightRadar24 API")
-            print()
+    # Note: Origin/destination data is automatically included from FR24 API
+    # No separate enrichment step needed!
     
     # Print statistics
     print("Statistics:")

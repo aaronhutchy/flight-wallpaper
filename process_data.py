@@ -79,7 +79,7 @@ class FlightProcessor:
             
             distance = haversine_distance(self.home_lat, self.home_lon, lat, lon)
             
-            if distance < closest_distance and distance <= self.radius_miles:
+            if distance < closest_distance:  # Show all aircraft, don't filter by radius here
                 closest_distance = distance
                 closest_state = state
         
@@ -95,7 +95,10 @@ class FlightProcessor:
             'heading': closest_state.get('heading'),
             'velocity': closest_state.get('velocity'),
             'timestamp': closest_state.get('timestamp'),
-            'distance': closest_distance
+            'distance': closest_distance,
+            # Pass through origin/destination if available
+            'origin': closest_state.get('origin_iata') or closest_state.get('origin_icao'),
+            'destination': closest_state.get('destination_iata') or closest_state.get('destination_icao')
         }
     
     def get_statistics(self, approaches: List[Dict]) -> Dict:

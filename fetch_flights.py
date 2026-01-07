@@ -78,7 +78,7 @@ class FlightRadar24Fetcher:
         return flights
     
     def _parse_fr24_flight(self, flight: Dict) -> Dict:
-        """Parse FR24 flight data"""
+        """Parse FR24 flight data - NOW WITH ORIGIN/DESTINATION"""
         return {
             'icao24': flight.get('hex'),
             'callsign': flight.get('callsign'),
@@ -91,7 +91,12 @@ class FlightRadar24Fetcher:
             'velocity': flight.get('gspeed') * 0.514444 if flight.get('gspeed') else None,  # knots to m/s
             'heading': flight.get('track'),
             'vertical_rate': flight.get('vspeed') * 0.00508 if flight.get('vspeed') else None,  # ft/min to m/s
-            'geo_altitude': flight.get('alt') * 0.3048 if flight.get('alt') else None
+            'geo_altitude': flight.get('alt') * 0.3048 if flight.get('alt') else None,
+            # ADDED: Extract origin/destination from FR24 API
+            'origin_iata': flight.get('orig_iata'),
+            'origin_icao': flight.get('orig_icao'),
+            'destination_iata': flight.get('dest_iata'),
+            'destination_icao': flight.get('dest_icao')
         }
     
     def get_yesterday_flights(self, center_lat: float, center_lon: float, radius_degrees: float) -> List[Dict]:
