@@ -85,4 +85,4 @@ class FlightProcessor:
         
         closest_approaches.sort(key=lambda x: x['distance_to_home'])
         
-        print(f"Identified {len(
+print(f"Identified {len(closest_approaches)} aircraft with closest approaches")
