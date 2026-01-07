@@ -59,12 +59,12 @@ class WallpaperGenerator:
         ax.set_ylim(home_lat - margin, home_lat + margin)
         ax.set_aspect('equal')
         
-        # Add MINIMAL map background - simple grayscale street map or none
+        # Add watercolor artistic map background
         try:
-            print("  Adding minimal map background...")
-            # Use a minimal, clean basemap style (CartoDB Positron is clean and minimal)
-            ctx.add_basemap(ax, crs='EPSG:4326', source=ctx.providers.CartoDB.Positron, alpha=0.3)
-            print("  ✓ Minimal map background loaded")
+            print("  Adding watercolor map background...")
+            # Use Stamen Watercolor for artistic painted look
+            ctx.add_basemap(ax, crs='EPSG:4326', source=ctx.providers.Stamen.Watercolor, alpha=0.6)
+            print("  ✓ Watercolor map background loaded")
         except Exception as e:
             print(f"  Note: Map background unavailable: {e}")
             print("  Continuing with clean grid design")
@@ -130,11 +130,11 @@ class WallpaperGenerator:
         ax.set_ylim(home_lat - margin, home_lat + margin)
         ax.set_aspect('equal')
         
-        # Add minimal map background
+        # Add watercolor artistic map background
         try:
-            print("  Adding minimal map background...")
-            ctx.add_basemap(ax, crs='EPSG:4326', source=ctx.providers.CartoDB.Positron, alpha=0.3)
-            print("  ✓ Minimal map background loaded")
+            print("  Adding watercolor map background...")
+            ctx.add_basemap(ax, crs='EPSG:4326', source=ctx.providers.Stamen.Watercolor, alpha=0.6)
+            print("  ✓ Watercolor map background loaded")
         except Exception as e:
             print(f"  Note: Map background unavailable: {e}")
             print("  Continuing with clean grid design")
