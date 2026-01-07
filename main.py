@@ -132,22 +132,30 @@ def main():
     output_file = output_dir / f'wallpaper_{timestamp}{suffix}.png'
     
     generator = WallpaperGenerator(config)
+    
+    # Generate portrait version (PNG + JPG)
     generator.create_wallpaper(home_lat, home_lon, approaches, stats, str(output_file))
+    
+    # Generate landscape 16:9 version (JPG only)
+    generator.create_landscape_wallpaper(home_lat, home_lon, approaches, stats, str(output_file))
     
     print()
     print("=" * 60)
     print("✓ Complete!")
     print("=" * 60)
-    print(f"\nYour wallpaper is ready: {output_file}")
-    print(f"Also saved as: {str(output_file).replace('.png', '.jpg')}")
+    print(f"\nYour wallpapers are ready:")
+    print(f"  Portrait PNG: {output_file}")
+    print(f"  Portrait JPG: {str(output_file).replace('.png', '.jpg')}")
+    print(f"  Landscape JPG (16:9): {str(output_file).replace('.png', '_landscape.jpg')}")
     if args.demo:
         print("\nThis was generated with sample data.")
         print("To use real flight data, run without --demo flag:")
         print("  python main.py")
     print("\nNext steps:")
     print("  1. View the images in the output/ directory")
-    print("  2. Set as your phone wallpaper")
-    print("  3. Run this script daily for fresh wallpapers!")
+    print("  2. Portrait for phone wallpaper")
+    print("  3. Landscape for desktop/tablet")
+    print("  4. Run this script daily for fresh wallpapers!")
     print()
 
 

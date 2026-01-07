@@ -48,12 +48,12 @@ class WallpaperGenerator:
         # Remove all padding to fill entire screen
         plt.subplots_adjust(left=0, right=1, top=1, bottom=0)
         
-        # Save PNG
-        plt.savefig(output_path, dpi=dpi, facecolor=self.bg_color, edgecolor='none', bbox_inches='tight', pad_inches=0)
+        # Save PNG - use fixed figure size (no bbox_inches to prevent shifting)
+        plt.savefig(output_path, dpi=dpi, facecolor=self.bg_color, edgecolor='none', pad_inches=0)
         
         # Also save as JPG
         jpg_path = output_path.replace('.png', '.jpg')
-        plt.savefig(jpg_path, dpi=dpi, facecolor=self.bg_color, edgecolor='none', bbox_inches='tight', pad_inches=0, format='jpg')
+        plt.savefig(jpg_path, dpi=dpi, facecolor=self.bg_color, edgecolor='none', pad_inches=0, format='jpg')
         
         plt.close()
         
@@ -61,9 +61,44 @@ class WallpaperGenerator:
         print(f"  PNG: {output_path}")
         print(f"  JPG: {jpg_path}")
     
+    def create_landscape_wallpaper(self, home_lat: float, home_lon: float, approaches: List[Dict], stats: Dict, output_path: str):
+        """Create 16:9 landscape wallpaper (1920x1080) with full radar visible"""
+        # 16:9 landscape dimensions
+        width = 1920
+        height = 1080
+        dpi = 100
+        
+        fig, ax = plt.subplots(figsize=(width/dpi, height/dpi), dpi=dpi)
+        fig.patch.set_facecolor(self.bg_color)
+        ax.set_facecolor(self.bg_color)
+        
+        # Use landscape-optimized view (no cropping, full radar visible)
+        if not approaches:
+            self._create_empty_wallpaper_landscape(ax, home_lat, home_lon)
+        else:
+            self._create_flight_wallpaper_landscape(ax, home_lat, home_lon, approaches, stats)
+        
+        ax.set_xticks([])
+        ax.set_yticks([])
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+        ax.spines['bottom'].set_visible(False)
+        ax.spines['left'].set_visible(False)
+        
+        plt.subplots_adjust(left=0, right=1, top=1, bottom=0)
+        
+        # Save as JPG only - use fixed figure size (no bbox_inches to prevent shifting)
+        landscape_path = output_path.replace('.png', '_landscape.jpg')
+        plt.savefig(landscape_path, dpi=dpi, facecolor=self.bg_color, edgecolor='none', pad_inches=0, format='jpg')
+        
+        plt.close()
+        
+        print(f"  Landscape JPG: {landscape_path}")
+    
     def _create_flight_wallpaper(self, ax, home_lat: float, home_lon: float, approaches: List[Dict], stats: Dict):
         """Create wallpaper with flight data"""
         # Fixed view optimized for PORTRAIT phone (tall, narrow)
+        # ALWAYS centered on home, may crop aircraft at edges
         radius_degrees = self._miles_to_degrees(self.config['radius_miles'], home_lat)
         
         # Phone aspect ratio: height=2316, width=1080 → tall and narrow
@@ -75,9 +110,13 @@ class WallpaperGenerator:
         # Set horizontal span narrower to crop left/right edges
         h_margin = v_margin * 0.47  # Crop sides for portrait
         
+        # CRITICAL: Set limits first and lock them
         ax.set_xlim(home_lon - h_margin, home_lon + h_margin)
         ax.set_ylim(home_lat - v_margin, home_lat + v_margin)
         ax.set_aspect('equal')
+        
+        # Disable autoscaling to keep view locked on home
+        ax.autoscale(False)
         
         # Use clean radar grid background (no map tiles)
         print("  Using clean radar grid design...")
@@ -132,6 +171,70 @@ class WallpaperGenerator:
         
         self._add_text_info(ax, stats)
     
+    def _create_flight_wallpaper_landscape(self, ax, home_lat: float, home_lon: float, approaches: List[Dict], stats: Dict):
+        """Create landscape wallpaper with full radar visible (no cropping)"""
+        # Fixed view for 16:9 landscape - show full radar
+        radius_degrees = self._miles_to_degrees(self.config['radius_miles'], home_lat)
+        
+        # Equal margins on all sides for full circular radar
+        margin = radius_degrees * 1.05
+        
+        ax.set_xlim(home_lon - margin, home_lon + margin)
+        ax.set_ylim(home_lat - margin, home_lat + margin)
+        ax.set_aspect('equal')
+        ax.autoscale(False)  # Lock view on home
+        
+        # Use clean radar grid background
+        print("  Creating landscape version...")
+        self._draw_minimal_grid(ax, home_lat, home_lon, radius_degrees)
+        
+        # Draw neon pink radar circles
+        for i in range(1, int(self.config['radius_miles']) + 1):
+            circle_radius = self._miles_to_degrees(i, home_lat)
+            circle = Circle((home_lon, home_lat), circle_radius, fill=False, edgecolor=self.radar_color, 
+                           alpha=0.4, linewidth=2, linestyle='-')
+            ax.add_patch(circle)
+        
+        # Plot home location
+        ax.plot(home_lon, home_lat, marker='o', markersize=15, color=self.home_color, 
+               zorder=1000, markeredgecolor=self.home_color, markeredgewidth=2)
+        
+        # Plot each flight
+        for approach in approaches:
+            if approach['latitude'] is None or approach['longitude'] is None:
+                continue
+            
+            lat = approach['latitude']
+            lon = approach['longitude']
+            
+            # Draw line from home to approach point
+            ax.plot([home_lon, lon], [home_lat, lat], color=self.flight_color, 
+                   alpha=0.4, linewidth=1, zorder=1)
+            
+            # Use airplane marker
+            marker_size = self._get_marker_size(approach)
+            heading = approach.get('heading', 0)
+            if heading is None:
+                heading = 0
+            
+            ax.plot(lon, lat, marker=(3, 0, heading - 90), markersize=marker_size, 
+                   color=self.flight_color, alpha=0.9, zorder=10, 
+                   markeredgecolor=self.flight_color, markeredgewidth=1.5)
+            
+            # ADD LABEL
+            label = self._format_label(approach)
+            if label:
+                lat_range = ax.get_ylim()[1] - ax.get_ylim()[0]
+                label_offset = lat_range * 0.015
+                
+                ax.text(lon, lat - label_offset, label, 
+                       fontsize=11, color=self.text_color, ha='center', va='top',
+                       fontweight='bold', zorder=11,
+                       bbox=dict(boxstyle='round,pad=0.4', facecolor='black', 
+                                edgecolor=self.flight_color, linewidth=1, alpha=0.9))
+        
+        self._add_text_info(ax, stats)
+    
     def _create_empty_wallpaper(self, ax, home_lat: float, home_lon: float):
         """Create wallpaper when no flights found"""
         # Fixed view optimized for PORTRAIT phone (tall, narrow)
@@ -146,6 +249,7 @@ class WallpaperGenerator:
         ax.set_xlim(home_lon - h_margin, home_lon + h_margin)
         ax.set_ylim(home_lat - v_margin, home_lat + v_margin)
         ax.set_aspect('equal')
+        ax.autoscale(False)  # Lock view on home
         
         # Use clean radar grid background
         print("  Using clean radar grid design...")
@@ -159,6 +263,41 @@ class WallpaperGenerator:
             ax.add_patch(circle)
         
         # Plot home location as pink dot
+        ax.plot(home_lon, home_lat, marker='o', markersize=15, color=self.home_color,
+               zorder=1000, markeredgecolor=self.home_color, markeredgewidth=2)
+        
+        # Add text
+        ax.text(0.5, 0.95, 'No flights detected', transform=ax.transAxes, fontsize=28,
+               color=self.text_color, ha='center', va='top', fontweight='light')
+        
+        ax.text(0.5, 0.88, 'within the search radius', transform=ax.transAxes, fontsize=16,
+               color=self.text_color, ha='center', va='top', alpha=0.6)
+    
+    def _create_empty_wallpaper_landscape(self, ax, home_lat: float, home_lon: float):
+        """Create landscape empty wallpaper with full radar"""
+        # Fixed view for landscape - full radar visible
+        radius_degrees = self._miles_to_degrees(self.config['radius_miles'], home_lat)
+        
+        # Equal margins for full circular radar
+        margin = radius_degrees * 1.05
+        
+        ax.set_xlim(home_lon - margin, home_lon + margin)
+        ax.set_ylim(home_lat - margin, home_lat + margin)
+        ax.set_aspect('equal')
+        ax.autoscale(False)  # Lock view on home
+        
+        # Use clean radar grid background
+        print("  Creating landscape version...")
+        self._draw_minimal_grid(ax, home_lat, home_lon, radius_degrees)
+        
+        # Draw neon pink radar circles
+        for i in range(1, int(self.config['radius_miles']) + 1):
+            circle_radius = self._miles_to_degrees(i, home_lat)
+            circle = Circle((home_lon, home_lat), circle_radius, fill=False, edgecolor=self.radar_color,
+                           alpha=0.4, linewidth=2, linestyle='-')
+            ax.add_patch(circle)
+        
+        # Plot home location
         ax.plot(home_lon, home_lat, marker='o', markersize=15, color=self.home_color,
                zorder=1000, markeredgecolor=self.home_color, markeredgewidth=2)
         
