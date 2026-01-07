@@ -119,9 +119,9 @@ class WallpaperGenerator:
     
     def _add_text_info(self, ax, stats: Dict):
         """Add title and statistics text"""
-        yesterday = datetime.now().date()
+        now = datetime.now()
         title = f"Flights Over My House"
-        subtitle = f"{yesterday.strftime('%B %d, %Y')}"
+        subtitle = f"Live - {now.strftime('%B %d, %Y %H:%M')}"
         
         ax.text(0.5, 0.97, title, transform=ax.transAxes, fontsize=32, color=self.text_color,
                ha='center', va='top', fontweight='bold')
