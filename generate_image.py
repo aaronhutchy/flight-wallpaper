@@ -90,9 +90,14 @@ class WallpaperGenerator:
             ax.plot([home_lon, lon], [home_lat, lat], color=self.flight_color, 
                    alpha=0.3, linewidth=0.5, zorder=1)
             
+            # Use airplane marker
             marker_size = self._get_marker_size(approach)
-            ax.plot(lon, lat, marker='o', markersize=marker_size, color=self.flight_color, 
-                   alpha=0.7, zorder=10, markeredgecolor=self.flight_color, markeredgewidth=0)
+            heading = approach.get('heading', 0) or 0  # Get heading, default to 0 if None
+            
+            # Plot airplane symbol (rotated triangle)
+            ax.plot(lon, lat, marker=(3, 0, heading - 90), markersize=marker_size * 1.5, 
+                   color=self.flight_color, alpha=0.8, zorder=10, 
+                   markeredgecolor='white', markeredgewidth=0.5)
         
         self._add_text_info(ax, stats)
     
