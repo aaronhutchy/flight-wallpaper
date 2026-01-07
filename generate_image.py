@@ -205,8 +205,8 @@ class WallpaperGenerator:
     def _format_label(self, approach: Dict) -> str:
         """Format aircraft label intelligently based on available data"""
         callsign = (approach.get('callsign') or '').strip()
-        origin = approach.get('origin', '').strip()
-        destination = approach.get('destination', '').strip()
+        origin = (approach.get('origin') or '').strip()
+        destination = (approach.get('destination') or '').strip()
         icao24 = approach.get('icao24', '').strip()
         
         # Build label with flight number and route
