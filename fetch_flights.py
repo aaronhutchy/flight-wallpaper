@@ -1,5 +1,5 @@
 """
-Fetch flight data from OpenSky Network API
+Fetch flight data from OpenSky Network API with OAuth2 support
 """
 import requests
 import time
@@ -12,10 +12,61 @@ class OpenSkyFetcher:
     """Handles fetching flight data from OpenSky Network API"""
     
     BASE_URL = "https://opensky-network.org/api"
+    TOKEN_URL = "https://auth.opensky-network.org/auth/realms/opensky-network/protocol/openid-connect/token"
     
-    def __init__(self, username: Optional[str] = None, password: Optional[str] = None):
-        self.auth = (username, password) if username and password else None
+    def __init__(self, client_id: Optional[str] = None, client_secret: Optional[str] = None, 
+                 username: Optional[str] = None, password: Optional[str] = None):
+        """
+        Initialize the OpenSky API client
+        
+        Args:
+            client_id: OAuth2 client ID (for new accounts)
+            client_secret: OAuth2 client secret (for new accounts)
+            username: Username (legacy accounts only)
+            password: Password (legacy accounts only)
+        """
         self.session = requests.Session()
+        self.access_token = None
+        
+        # Try OAuth2 first (new authentication method)
+        if client_id and client_secret:
+            self.client_id = client_id
+            self.client_secret = client_secret
+            self._get_oauth_token()
+        # Fall back to basic auth (legacy)
+        elif username and password:
+            self.session.auth = (username, password)
+        
+    def _get_oauth_token(self):
+        """Get OAuth2 access token"""
+        try:
+            response = requests.post(
+                self.TOKEN_URL,
+                data={
+                    'grant_type': 'client_credentials',
+                    'client_id': self.client_id,
+                    'client_secret': self.client_secret
+                },
+                headers={'Content-Type': 'application/x-www-form-urlencoded'},
+                timeout=10
+            )
+            
+            if response.status_code == 200:
+                self.access_token = response.json()['access_token']
+                print("  ✓ OAuth2 authentication successful")
+            else:
+                print(f"  ✗ OAuth2 authentication failed: {response.status_code}")
+                
+        except Exception as e:
+            print(f"  ✗ OAuth2 token request failed: {e}")
+    
+    def _make_request(self, url, params):
+        """Make authenticated request"""
+        headers = {}
+        if self.access_token:
+            headers['Authorization'] = f'Bearer {self.access_token}'
+            
+        return self.session.get(url, params=params, headers=headers, timeout=30)
         
     def get_flights_in_timerange(
         self,
@@ -44,7 +95,7 @@ class OpenSkyFetcher:
             }
             
             try:
-                response = self.session.get(url, params=params, auth=self.auth, timeout=30)
+                response = self._make_request(url, params)
                 
                 if response.status_code == 200:
                     data = response.json()
