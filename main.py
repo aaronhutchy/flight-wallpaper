@@ -59,12 +59,19 @@ def main():
         print()
     else:
         print("Initializing API client...")
+        
+        # Check for OpenSky credentials (OAuth2 or legacy)
+        client_id = config.get('opensky', {}).get('client_id')
+        client_secret = config.get('opensky', {}).get('client_secret')
         username = config.get('opensky', {}).get('username')
         password = config.get('opensky', {}).get('password')
         
-        if username and password:
-            print(f"  Using authenticated access (user: {username})")
-            fetcher = OpenSkyFetcher(username, password)
+        if client_id and client_secret:
+            print(f"  Using OAuth2 authenticated access")
+            fetcher = OpenSkyFetcher(client_id=client_id, client_secret=client_secret)
+        elif username and password:
+            print(f"  Using basic auth (legacy)")
+            fetcher = OpenSkyFetcher(username=username, password=password)
         else:
             print("  Using anonymous access")
             fetcher = OpenSkyFetcher()
