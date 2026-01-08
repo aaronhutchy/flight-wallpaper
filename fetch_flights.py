@@ -29,7 +29,8 @@ class FlightRadar24Fetcher:
         lon_min: float,
         lon_max: float,
         begin_time: int,
-        end_time: int
+        end_time: int,
+        interval_minutes: int = 15
     ) -> List[Dict]:
         """Fetch historical flights in a bounding box"""
         
@@ -39,39 +40,66 @@ class FlightRadar24Fetcher:
         bounds = f"{lat_max},{lat_min},{lon_min},{lon_max}"
         
         print(f"Fetching FlightRadar24 data from {datetime.fromtimestamp(begin_time)} to {datetime.fromtimestamp(end_time)}")
+        print(f"  Using {interval_minutes}-minute intervals")
         
         flights = []
         current_time = begin_time
-        chunk_size = 900  # 15 minute chunks (was 3600 for hourly)
+        chunk_size = interval_minutes * 60  # Convert minutes to seconds
         
         while current_time < end_time:
-            try:
-                params = {
-                    'timestamp': current_time,
-                    'bounds': bounds
-                }
-                
-                response = self.session.get(url, params=params, timeout=30)
-                
-                if response.status_code == 200:
-                    data = response.json()
-                    
-                    if 'data' in data and data['data']:
-                        for flight in data['data']:
-                            flights.append(self._parse_fr24_flight(flight))
-                        print(f"  ✓ Fetched {len(data['data'])} states at {datetime.fromtimestamp(current_time)}")
-                    else:
-                        print(f"  - No flights at {datetime.fromtimestamp(current_time)}")
-                        
-                elif response.status_code == 404:
-                    print(f"  - No data for {datetime.fromtimestamp(current_time)}")
-                else:
-                    print(f"  ✗ Error {response.status_code} at {datetime.fromtimestamp(current_time)}")
-                    
-            except requests.exceptions.RequestException as e:
-                print(f"  ✗ Request failed: {e}")
+            retries = 3  # Retry failed requests up to 3 times
+            retry_count = 0
             
-            time.sleep(6)  # Rate limiting - 10 requests per minute
+            while retry_count < retries:
+                try:
+                    params = {
+                        'timestamp': current_time,
+                        'bounds': bounds
+                    }
+                    
+                    response = self.session.get(url, params=params, timeout=60)  # Increased timeout
+                    
+                    if response.status_code == 200:
+                        data = response.json()
+                        
+                        if 'data' in data and data['data']:
+                            for flight in data['data']:
+                                flights.append(self._parse_fr24_flight(flight))
+                            print(f"  ✓ Fetched {len(data['data'])} states at {datetime.fromtimestamp(current_time)}")
+                        else:
+                            print(f"  - No flights at {datetime.fromtimestamp(current_time)}")
+                        break  # Success, exit retry loop
+                            
+                    elif response.status_code == 404:
+                        print(f"  - No data for {datetime.fromtimestamp(current_time)}")
+                        break  # No data, exit retry loop
+                    else:
+                        print(f"  ✗ Error {response.status_code} at {datetime.fromtimestamp(current_time)}")
+                        retry_count += 1
+                        if retry_count < retries:
+                            print(f"    Retrying ({retry_count}/{retries})...")
+                            time.sleep(3)
+                        
+                except requests.exceptions.Timeout:
+                    retry_count += 1
+                    print(f"  ✗ Timeout at {datetime.fromtimestamp(current_time)}")
+                    if retry_count < retries:
+                        print(f"    Retrying ({retry_count}/{retries})...")
+                        time.sleep(3)
+                    else:
+                        print(f"    Skipping after {retries} attempts")
+                        
+                except requests.exceptions.RequestException as e:
+                    retry_count += 1
+                    print(f"  ✗ Request failed: {e}")
+                    if retry_count < retries:
+                        print(f"    Retrying ({retry_count}/{retries})...")
+                        time.sleep(3)
+                    else:
+                        print(f"    Skipping after {retries} attempts")
+                        break
+            
+            time.sleep(7)  # Increased rate limiting - give API more breathing room
             current_time += chunk_size
         
         print(f"Total FR24 states fetched: {len(flights)}")
@@ -99,7 +127,7 @@ class FlightRadar24Fetcher:
             'destination_icao': flight.get('dest_icao')
         }
     
-    def get_yesterday_flights(self, center_lat: float, center_lon: float, radius_degrees: float) -> List[Dict]:
+    def get_yesterday_flights(self, center_lat: float, center_lon: float, radius_degrees: float, interval_minutes: int = 15) -> List[Dict]:
         """Get yesterday's flights"""
         lat_min = center_lat - radius_degrees
         lat_max = center_lat + radius_degrees
@@ -114,7 +142,7 @@ class FlightRadar24Fetcher:
         begin_time = int(yesterday_start.timestamp())
         end_time = int(yesterday_end.timestamp())
         
-        return self.get_historical_flights(lat_min, lat_max, lon_min, lon_max, begin_time, end_time)
+        return self.get_historical_flights(lat_min, lat_max, lon_min, lon_max, begin_time, end_time, interval_minutes)
 
 
 class OpenSkyFetcher:

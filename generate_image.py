@@ -404,3 +404,146 @@ class WallpaperGenerator:
         lat_degrees = miles / 69.0
         lon_degrees = miles / (69.0 * math.cos(math.radians(latitude)))
         return max(lat_degrees, lon_degrees)
+    
+    def _get_altitude_color(self, altitude_meters: float) -> str:
+        """Map altitude to color gradient (deep purple -> hot pink -> light pink)"""
+        if altitude_meters is None:
+            return '#ff69b4'  # Default light pink
+        
+        altitude_feet = altitude_meters * 3.28084
+        
+        # Color gradient in pink/purple range based on altitude
+        if altitude_feet < 1000:
+            return '#8B008B'  # Deep magenta (very low)
+        elif altitude_feet < 5000:
+            return '#9932CC'  # Dark orchid (low)
+        elif altitude_feet < 10000:
+            return '#C71585'  # Medium violet red (medium-low)
+        elif altitude_feet < 15000:
+            return '#FF1493'  # Deep pink (medium)
+        elif altitude_feet < 25000:
+            return '#FF69B4'  # Hot pink (medium-high)
+        elif altitude_feet < 35000:
+            return '#FFB6C1'  # Light pink (high)
+        else:
+            return '#FFC0CB'  # Very light pink (very high)
+    
+    def create_artistic_wallpaper(self, home_lat: float, home_lon: float, approaches: List[Dict], stats: Dict, output_path: str):
+        """Create artistic wallpaper with directional triangles and altitude colors - NO LABELS"""
+        dpi = 100
+        fig_width = self.width / dpi
+        fig_height = self.height / dpi
+        
+        fig, ax = plt.subplots(figsize=(fig_width, fig_height), dpi=dpi)
+        fig.patch.set_facecolor(self.bg_color)
+        ax.set_facecolor(self.bg_color)
+        
+        # Create artistic version
+        self._create_artistic_flight_wallpaper(ax, home_lat, home_lon, approaches, stats)
+        
+        ax.set_xticks([])
+        ax.set_yticks([])
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+        ax.spines['bottom'].set_visible(False)
+        ax.spines['left'].set_visible(False)
+        
+        plt.subplots_adjust(left=0, right=1, top=1, bottom=0)
+        
+        # Save as JPG for artistic version
+        artistic_path = output_path.replace('.png', '_artistic.jpg')
+        plt.savefig(artistic_path, dpi=dpi, facecolor=self.bg_color, edgecolor='none', pad_inches=0, format='jpg')
+        
+        plt.close()
+        
+        print(f"  Artistic JPG: {artistic_path}")
+    
+    def _create_artistic_flight_wallpaper(self, ax, home_lat: float, home_lon: float, approaches: List[Dict], stats: Dict):
+        """Create artistic wallpaper with altitude-colored directional triangles, NO LABELS"""
+        from matplotlib.path import Path
+        import matplotlib.patches as patches
+        
+        # Fixed view for portrait phone
+        radius_degrees = self._miles_to_degrees(self.config['radius_miles'], home_lat)
+        v_margin = radius_degrees * 1.05
+        h_margin = v_margin * 0.47
+        
+        ax.set_xlim(home_lon - h_margin, home_lon + h_margin)
+        ax.set_ylim(home_lat - v_margin, home_lat + v_margin)
+        ax.set_aspect('equal')
+        ax.autoscale(False)
+        
+        # Draw minimal grid
+        self._draw_minimal_grid(ax, home_lat, home_lon, radius_degrees)
+        
+        # Draw radar circles
+        for i in range(1, int(self.config['radius_miles']) + 1):
+            circle_radius = self._miles_to_degrees(i, home_lat)
+            circle = Circle((home_lon, home_lat), circle_radius, fill=False, edgecolor=self.radar_color,
+                           alpha=0.4, linewidth=2, linestyle='-')
+            ax.add_patch(circle)
+        
+        # Plot home location
+        ax.plot(home_lon, home_lat, marker='o', markersize=15, color=self.home_color,
+               zorder=1000, markeredgecolor=self.home_color, markeredgewidth=2)
+        
+        # Plot each flight with directional triangles and altitude colors
+        for approach in approaches:
+            if approach['latitude'] is None or approach['longitude'] is None:
+                continue
+            
+            lat = approach['latitude']
+            lon = approach['longitude']
+            altitude = approach.get('altitude')
+            
+            # Get color based on altitude
+            aircraft_color = self._get_altitude_color(altitude)
+            
+            # Draw line from home to approach point (using altitude color)
+            ax.plot([home_lon, lon], [home_lat, lat], color=aircraft_color,
+                   alpha=0.3, linewidth=1, zorder=1)
+            
+            # Get heading and size
+            heading = approach.get('heading', 0)
+            if heading is None:
+                heading = 0
+            marker_size = self._get_marker_size(approach) * 1.5  # Significantly larger for artistic view
+            
+            # Draw directional arrow/triangle (narrower at front)
+            # Create custom path for isosceles triangle pointing in flight direction
+            import math
+            
+            # Convert heading to radians (0° = North, clockwise)
+            angle_rad = math.radians(heading - 90)  # Adjust for matplotlib coordinates
+            
+            # Define triangle shape (narrower at front, wider at back)
+            # Scale based on map coordinates - larger triangles
+            triangle_length = marker_size * 0.0001  # Doubled from 0.00005
+            triangle_width = triangle_length * 0.5   # Narrower width for better directionality
+            
+            # Calculate triangle points relative to aircraft position
+            front_x = lon + triangle_length * math.cos(angle_rad)
+            front_y = lat + triangle_length * math.sin(angle_rad)
+            
+            back_x = lon - triangle_length * 0.4 * math.cos(angle_rad)
+            back_y = lat - triangle_length * 0.4 * math.sin(angle_rad)
+            
+            left_x = back_x - triangle_width * math.sin(angle_rad)
+            left_y = back_y + triangle_width * math.cos(angle_rad)
+            
+            right_x = back_x + triangle_width * math.sin(angle_rad)
+            right_y = back_y - triangle_width * math.cos(angle_rad)
+            
+            # Create triangle path
+            verts = [(front_x, front_y), (left_x, left_y), (right_x, right_y), (front_x, front_y)]
+            codes = [Path.MOVETO, Path.LINETO, Path.LINETO, Path.CLOSEPOLY]
+            path = Path(verts, codes)
+            
+            # Draw triangle
+            patch = patches.PathPatch(path, facecolor=aircraft_color, edgecolor=aircraft_color,
+                                     linewidth=1.5, alpha=0.9, zorder=10)
+            ax.add_patch(patch)
+        
+        # NO LABELS - pure abstract visualization
+        # Keep stats text at bottom
+        self._add_text_info(ax, stats)

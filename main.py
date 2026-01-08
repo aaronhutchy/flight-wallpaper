@@ -78,12 +78,16 @@ def main():
         
         print()
         print("Fetching flight data...")
+        
+        # Get data collection interval from config (default: 15 minutes)
+        interval_minutes = config.get('data_collection_interval_minutes', 15)
+        print(f"  Using {interval_minutes}-minute intervals")
         print("  This may take a few minutes...\n")
         
         radius_degrees = miles_to_degrees(radius_miles, home_lat)
         
         try:
-            flights = fetcher.get_yesterday_flights(home_lat, home_lon, radius_degrees)
+            flights = fetcher.get_yesterday_flights(home_lat, home_lon, radius_degrees, interval_minutes)
         except Exception as e:
             print(f"\n✗ Error fetching flights: {e}")
             print("\nTip: Use '--demo' flag to test:")
@@ -139,6 +143,9 @@ def main():
     # Generate landscape 16:9 version (JPG only)
     generator.create_landscape_wallpaper(home_lat, home_lon, approaches, stats, str(output_file))
     
+    # Generate artistic version (JPG only) - altitude colors, directional triangles, no labels
+    generator.create_artistic_wallpaper(home_lat, home_lon, approaches, stats, str(output_file))
+    
     print()
     print("=" * 60)
     print("✓ Complete!")
@@ -147,15 +154,16 @@ def main():
     print(f"  Portrait PNG: {output_file}")
     print(f"  Portrait JPG: {str(output_file).replace('.png', '.jpg')}")
     print(f"  Landscape JPG (16:9): {str(output_file).replace('.png', '_landscape.jpg')}")
+    print(f"  Artistic JPG: {str(output_file).replace('.png', '_artistic.jpg')}")
     if args.demo:
         print("\nThis was generated with sample data.")
         print("To use real flight data, run without --demo flag:")
         print("  python main.py")
-    print("\nNext steps:")
-    print("  1. View the images in the output/ directory")
-    print("  2. Portrait for phone wallpaper")
-    print("  3. Landscape for desktop/tablet")
-    print("  4. Run this script daily for fresh wallpapers!")
+    print("\nVersions:")
+    print("  • Portrait: Phone wallpaper with flight labels")
+    print("  • Landscape: Desktop/tablet with full radar")
+    print("  • Artistic: Abstract visualization with altitude colors")
+    print("\nRun this script daily for fresh wallpapers!")
     print()
 
 
