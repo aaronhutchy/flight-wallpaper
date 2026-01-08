@@ -543,19 +543,33 @@ class WallpaperGenerator:
             ax.add_patch(patch)
         
         # Add stylish travel poster-style text in top left
-        text_block = (
+        from datetime import datetime
+        date_str = datetime.now().strftime('%B %d, %Y')
+        
+        # Location and coordinates - LARGER
+        location_text = (
             "BRANSTON\n"
             "LINCOLNSHIRE\n\n"
-            f"{home_lat:.4f}°N, {abs(home_lon):.4f}°W\n\n"
-            f"{stats['total_aircraft']} Aircraft Observed\n"
-            f"Closest: {stats['closest_distance']:.2f} mi\n"
-            f"Altitude: {stats['average_altitude']:,.0f} ft avg"
+            f"{date_str}\n"
+            f"{home_lat:.4f}°N, {abs(home_lon):.4f}°W"
         )
         
-        ax.text(0.03, 0.97, text_block, transform=ax.transAxes, 
-               fontsize=11, color='white', ha='left', va='top', 
-               fontweight='normal', alpha=0.85, family='serif',
-               linespacing=1.6)
+        ax.text(0.03, 0.97, location_text, transform=ax.transAxes, 
+               fontsize=15, color='white', ha='left', va='top',  # Larger: 15pt
+               fontweight='bold', alpha=0.9, family='sans-serif',
+               linespacing=1.8)
+        
+        # Aircraft data - SMALLER
+        aircraft_text = (
+            f"{stats['total_aircraft']} Aircraft\n"
+            f"Closest {stats['closest_distance']:.2f} miles\n"
+            f"Average altitude {stats['average_altitude']:,.0f} feet"
+        )
+        
+        ax.text(0.03, 0.80, aircraft_text, transform=ax.transAxes, 
+               fontsize=12, color='white', ha='left', va='top',  # Smaller: 12pt
+               fontweight='bold', alpha=0.9, family='sans-serif',
+               linespacing=1.8)
         
         # NO additional stats - pure minimal aesthetic
     
@@ -581,6 +595,34 @@ class WallpaperGenerator:
         ax.spines['left'].set_visible(False)
         
         plt.subplots_adjust(left=0, right=1, top=1, bottom=0)
+        
+        # Add text using FIGURE coordinates (not axes) - positions at actual screen corner
+        from datetime import datetime
+        date_str = datetime.now().strftime('%B %d, %Y')
+        
+        location_text = (
+            "BRANSTON\n"
+            "LINCOLNSHIRE\n\n"
+            f"{date_str}\n"
+            f"{home_lat:.4f}°N, {abs(home_lon):.4f}°W"
+        )
+        
+        # Figure coordinates: 0,0 = bottom-left, 1,1 = top-right of ENTIRE IMAGE
+        fig.text(0.01, 0.99, location_text, 
+                fontsize=17, color='white', ha='left', va='top',
+                fontweight='bold', alpha=0.9, family='sans-serif',
+                linespacing=1.8)
+        
+        aircraft_text = (
+            f"{stats['total_aircraft']} Aircraft\n"
+            f"Closest {stats['closest_distance']:.2f} miles\n"
+            f"Average altitude {stats['average_altitude']:,.0f} feet"
+        )
+        
+        fig.text(0.01, 0.75, aircraft_text,
+                fontsize=14, color='white', ha='left', va='top',
+                fontweight='bold', alpha=0.9, family='sans-serif',
+                linespacing=1.8)
         
         # Save as JPG
         artistic_landscape_path = output_path.replace('.png', '_artistic_landscape.jpg')
@@ -669,19 +711,4 @@ class WallpaperGenerator:
                                      linewidth=1.5, alpha=0.9, zorder=10)
             ax.add_patch(patch)
         
-        # Add stylish travel poster-style text in top left
-        text_block = (
-            "BRANSTON\n"
-            "LINCOLNSHIRE\n\n"
-            f"{home_lat:.4f}°N, {abs(home_lon):.4f}°W\n\n"
-            f"{stats['total_aircraft']} Aircraft Observed\n"
-            f"Closest: {stats['closest_distance']:.2f} mi\n"
-            f"Altitude: {stats['average_altitude']:,.0f} ft avg"
-        )
-        
-        ax.text(0.03, 0.97, text_block, transform=ax.transAxes, 
-               fontsize=13, color='white', ha='left', va='top', 
-               fontweight='normal', alpha=0.85, family='serif',
-               linespacing=1.6)
-        
-        # NO additional stats - pure minimal aesthetic
+        # Text is now added at figure level, not here
