@@ -499,9 +499,7 @@ class WallpaperGenerator:
             # Get color based on altitude
             aircraft_color = self._get_altitude_color(altitude)
             
-            # Draw line from home to approach point (using altitude color)
-            ax.plot([home_lon, lon], [home_lat, lat], color=aircraft_color,
-                   alpha=0.3, linewidth=1, zorder=1)
+            # NO connecting lines - cleaner abstract look
             
             # Get heading and size
             heading = approach.get('heading', 0)
@@ -544,6 +542,146 @@ class WallpaperGenerator:
                                      linewidth=1.5, alpha=0.9, zorder=10)
             ax.add_patch(patch)
         
-        # NO LABELS - pure abstract visualization
-        # Keep stats text at bottom
-        self._add_text_info(ax, stats)
+        # Add stylish travel poster-style text in top left
+        text_block = (
+            "BRANSTON\n"
+            "LINCOLNSHIRE\n\n"
+            f"{home_lat:.4f}°N, {abs(home_lon):.4f}°W\n\n"
+            f"{stats['total_aircraft']} Aircraft Observed\n"
+            f"Closest: {stats['closest_distance']:.2f} mi\n"
+            f"Altitude: {stats['average_altitude']:,.0f} ft avg"
+        )
+        
+        ax.text(0.03, 0.97, text_block, transform=ax.transAxes, 
+               fontsize=11, color='white', ha='left', va='top', 
+               fontweight='normal', alpha=0.85, family='serif',
+               linespacing=1.6)
+        
+        # NO additional stats - pure minimal aesthetic
+    
+    def create_artistic_landscape_wallpaper(self, home_lat: float, home_lon: float, approaches: List[Dict], stats: Dict, output_path: str):
+        """Create artistic 16:9 landscape wallpaper with altitude colors and directional triangles"""
+        # 16:9 landscape dimensions
+        width = 1920
+        height = 1080
+        dpi = 100
+        
+        fig, ax = plt.subplots(figsize=(width/dpi, height/dpi), dpi=dpi)
+        fig.patch.set_facecolor(self.bg_color)
+        ax.set_facecolor(self.bg_color)
+        
+        # Create artistic landscape version
+        self._create_artistic_landscape_wallpaper(ax, home_lat, home_lon, approaches, stats)
+        
+        ax.set_xticks([])
+        ax.set_yticks([])
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+        ax.spines['bottom'].set_visible(False)
+        ax.spines['left'].set_visible(False)
+        
+        plt.subplots_adjust(left=0, right=1, top=1, bottom=0)
+        
+        # Save as JPG
+        artistic_landscape_path = output_path.replace('.png', '_artistic_landscape.jpg')
+        plt.savefig(artistic_landscape_path, dpi=dpi, facecolor=self.bg_color, edgecolor='none', pad_inches=0, format='jpg')
+        
+        plt.close()
+        
+        print(f"  Artistic Landscape JPG: {artistic_landscape_path}")
+    
+    def _create_artistic_landscape_wallpaper(self, ax, home_lat: float, home_lon: float, approaches: List[Dict], stats: Dict):
+        """Create artistic landscape wallpaper with altitude-colored directional triangles, NO LABELS"""
+        from matplotlib.path import Path
+        import matplotlib.patches as patches
+        
+        # Fixed view for landscape - full radar visible
+        radius_degrees = self._miles_to_degrees(self.config['radius_miles'], home_lat)
+        margin = radius_degrees * 1.05
+        
+        ax.set_xlim(home_lon - margin, home_lon + margin)
+        ax.set_ylim(home_lat - margin, home_lat + margin)
+        ax.set_aspect('equal')
+        ax.autoscale(False)
+        
+        # Draw minimal grid
+        self._draw_minimal_grid(ax, home_lat, home_lon, radius_degrees)
+        
+        # Draw radar circles
+        for i in range(1, int(self.config['radius_miles']) + 1):
+            circle_radius = self._miles_to_degrees(i, home_lat)
+            circle = Circle((home_lon, home_lat), circle_radius, fill=False, edgecolor=self.radar_color,
+                           alpha=0.4, linewidth=2, linestyle='-')
+            ax.add_patch(circle)
+        
+        # Plot home location
+        ax.plot(home_lon, home_lat, marker='o', markersize=15, color=self.home_color,
+               zorder=1000, markeredgecolor=self.home_color, markeredgewidth=2)
+        
+        # Plot each flight with directional triangles and altitude colors
+        for approach in approaches:
+            if approach['latitude'] is None or approach['longitude'] is None:
+                continue
+            
+            lat = approach['latitude']
+            lon = approach['longitude']
+            altitude = approach.get('altitude')
+            
+            # Get color based on altitude
+            aircraft_color = self._get_altitude_color(altitude)
+            
+            # NO connecting lines - cleaner abstract look
+            
+            # Get heading and size
+            heading = approach.get('heading', 0)
+            if heading is None:
+                heading = 0
+            marker_size = self._get_marker_size(approach) * 1.5
+            
+            # Draw directional arrow/triangle
+            import math
+            
+            angle_rad = math.radians(heading - 90)
+            
+            triangle_length = marker_size * 0.0001
+            triangle_width = triangle_length * 0.5
+            
+            # Calculate triangle points
+            front_x = lon + triangle_length * math.cos(angle_rad)
+            front_y = lat + triangle_length * math.sin(angle_rad)
+            
+            back_x = lon - triangle_length * 0.4 * math.cos(angle_rad)
+            back_y = lat - triangle_length * 0.4 * math.sin(angle_rad)
+            
+            left_x = back_x - triangle_width * math.sin(angle_rad)
+            left_y = back_y + triangle_width * math.cos(angle_rad)
+            
+            right_x = back_x + triangle_width * math.sin(angle_rad)
+            right_y = back_y - triangle_width * math.cos(angle_rad)
+            
+            # Create triangle path
+            verts = [(front_x, front_y), (left_x, left_y), (right_x, right_y), (front_x, front_y)]
+            codes = [Path.MOVETO, Path.LINETO, Path.LINETO, Path.CLOSEPOLY]
+            path = Path(verts, codes)
+            
+            # Draw triangle
+            patch = patches.PathPatch(path, facecolor=aircraft_color, edgecolor=aircraft_color,
+                                     linewidth=1.5, alpha=0.9, zorder=10)
+            ax.add_patch(patch)
+        
+        # Add stylish travel poster-style text in top left
+        text_block = (
+            "BRANSTON\n"
+            "LINCOLNSHIRE\n\n"
+            f"{home_lat:.4f}°N, {abs(home_lon):.4f}°W\n\n"
+            f"{stats['total_aircraft']} Aircraft Observed\n"
+            f"Closest: {stats['closest_distance']:.2f} mi\n"
+            f"Altitude: {stats['average_altitude']:,.0f} ft avg"
+        )
+        
+        ax.text(0.03, 0.97, text_block, transform=ax.transAxes, 
+               fontsize=13, color='white', ha='left', va='top', 
+               fontweight='normal', alpha=0.85, family='serif',
+               linespacing=1.6)
+        
+        # NO additional stats - pure minimal aesthetic
