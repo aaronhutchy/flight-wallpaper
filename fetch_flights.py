@@ -42,7 +42,7 @@ class FlightRadar24Fetcher:
         
         flights = []
         current_time = begin_time
-        chunk_size = 3600  # 1 hour chunks
+        chunk_size = 900  # 15 minute chunks (was 3600 for hourly)
         
         while current_time < end_time:
             try:

@@ -19,9 +19,9 @@ class WallpaperGenerator:
         self.height = 2316  # 19.3:9 aspect ratio
         self.bg_color = '#000000'  # Black background
         self.home_color = '#ff69b4'  # Light pink for home dot
-        self.flight_color = '#ff69b4'  # Light pink for aircraft
-        self.text_color = '#ff69b4'  # Light pink for text
-        self.radar_color = '#ff1493'  # Neon pink for radar circles
+        self.flight_color = '#ff85c0'  # Lighter/softer pink for aircraft (less bright than radar)
+        self.text_color = '#ff85c0'  # Lighter/softer pink for text (less bright than radar)
+        self.radar_color = '#ff1493'  # Neon pink for radar circles (brightest)
         
     def create_wallpaper(self, home_lat: float, home_lon: float, approaches: List[Dict], stats: Dict, output_path: str):
         """Create the wallpaper image"""
@@ -160,11 +160,12 @@ class WallpaperGenerator:
             label = self._format_label(approach)
             if label:
                 # Calculate offset in data coordinates for label placement
+                # Increased offset for more separation from aircraft
                 lat_range = ax.get_ylim()[1] - ax.get_ylim()[0]
-                label_offset = lat_range * 0.015  # Offset below aircraft
+                label_offset = lat_range * 0.025  # Increased from 0.015 for more separation
                 
                 ax.text(lon, lat - label_offset, label, 
-                       fontsize=11, color=self.text_color, ha='center', va='top',
+                       fontsize=12, color=self.text_color, ha='center', va='top',  # Increased from 11
                        fontweight='bold', zorder=11,
                        bbox=dict(boxstyle='round,pad=0.4', facecolor='black', 
                                 edgecolor=self.flight_color, linewidth=1, alpha=0.9))
@@ -225,10 +226,10 @@ class WallpaperGenerator:
             label = self._format_label(approach)
             if label:
                 lat_range = ax.get_ylim()[1] - ax.get_ylim()[0]
-                label_offset = lat_range * 0.015
+                label_offset = lat_range * 0.025  # Increased separation
                 
                 ax.text(lon, lat - label_offset, label, 
-                       fontsize=11, color=self.text_color, ha='center', va='top',
+                       fontsize=12, color=self.text_color, ha='center', va='top',  # Increased from 11
                        fontweight='bold', zorder=11,
                        bbox=dict(boxstyle='round,pad=0.4', facecolor='black', 
                                 edgecolor=self.flight_color, linewidth=1, alpha=0.9))
@@ -383,19 +384,19 @@ class WallpaperGenerator:
         """Calculate marker size based on altitude - LARGER for better visibility"""
         altitude = approach.get('altitude')
         if altitude is None:
-            return 28  # Larger default
+            return 31  # Larger default (28 * 1.1)
         
         altitude_feet = altitude * 3.28084
         
-        # Larger sizes for better visibility
+        # Larger sizes for better visibility (all increased by 10%)
         if altitude_feet < 5000:
-            return 32
+            return 35  # was 32
         elif altitude_feet < 15000:
-            return 30
+            return 33  # was 30
         elif altitude_feet < 30000:
-            return 28
+            return 31  # was 28
         else:
-            return 26
+            return 29  # was 26
     
     def _miles_to_degrees(self, miles: float, latitude: float) -> float:
         """Convert miles to approximate degrees"""
