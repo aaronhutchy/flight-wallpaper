@@ -548,10 +548,9 @@ class WallpaperGenerator:
         
         # Location and coordinates - LARGER
         location_text = (
-            "BRANSTON\n"
-            "LINCOLNSHIRE\n\n"
-            f"{date_str}\n"
-            f"{home_lat:.4f}°N, {abs(home_lon):.4f}°W"
+            "Branston, Lincolnshire\n"
+            f"{home_lat:.4f}°N, {abs(home_lon):.4f}°W\n"
+            f"{date_str}"
         )
         
         ax.text(0.03, 0.97, location_text, transform=ax.transAxes, 
@@ -559,9 +558,9 @@ class WallpaperGenerator:
                fontweight='bold', alpha=0.9, family='sans-serif',
                linespacing=1.8)
         
-        # Aircraft data - SMALLER
+        # Aircraft data - SMALLER (with blank line before)
         aircraft_text = (
-            f"{stats['total_aircraft']} Aircraft\n"
+            f"\n{stats['total_aircraft']} Aircraft\n"
             f"Closest {stats['closest_distance']:.2f} miles\n"
             f"Average altitude {stats['average_altitude']:,.0f} feet"
         )
@@ -601,10 +600,9 @@ class WallpaperGenerator:
         date_str = datetime.now().strftime('%B %d, %Y')
         
         location_text = (
-            "BRANSTON\n"
-            "LINCOLNSHIRE\n\n"
-            f"{date_str}\n"
-            f"{home_lat:.4f}°N, {abs(home_lon):.4f}°W"
+            "Branston, Lincolnshire\n"
+            f"{home_lat:.4f}°N, {abs(home_lon):.4f}°W\n"
+            f"{date_str}"
         )
         
         # Figure coordinates: 0,0 = bottom-left, 1,1 = top-right of ENTIRE IMAGE
@@ -614,7 +612,7 @@ class WallpaperGenerator:
                 linespacing=1.8)
         
         aircraft_text = (
-            f"{stats['total_aircraft']} Aircraft\n"
+            f"\n{stats['total_aircraft']} Aircraft\n"
             f"Closest {stats['closest_distance']:.2f} miles\n"
             f"Average altitude {stats['average_altitude']:,.0f} feet"
         )
