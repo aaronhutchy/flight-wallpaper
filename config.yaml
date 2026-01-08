@@ -1,28 +1,28 @@
 # Flight Wallpaper Configuration
 
-# Your home location (latitude, longitude)
+# Home location (latitude, longitude)
 home_location:
-  lat: 53.192780  # Your latitude
-  lon: -0.469602  # Your longitude
+  lat: 53.192780
+  lon: -0.469602
 
 # Search radius in miles
 radius_miles: 5.0
 
-# FlightRadar24 API (recommended for best coverage)
+# Data collection interval in minutes (default: 15)
+# Lower values = more data points, more API credits, longer fetch time
+# Options: 15 (recommended), 30, 60
+# - 15 min = 96 API calls/day (detailed tracking)
+# - 30 min = 48 API calls/day (balanced)
+# - 60 min = 24 API calls/day (economical)
+data_collection_interval_minutes: 15
+
+# FlightRadar24 API (recommended - has origin/destination data)
 flightradar24:
   enabled: true
   api_key: "019b99a5-6562-727e-b68e-d00f48f48a73|Px4SRbvxmwCTbdC41eaBL8ynCXHiP1IFBU1cMxykea4532c1"
 
-# OpenSky Network (free, but limited coverage)
+# OpenSky Network API (fallback - no origin/destination)
 opensky:
-  client_id: "aaronhutchy-api-client"
-  client_secret: "INnOY9oqCNyaYLt9TC5KmbzMYKGqZPJ5"
-
-# Image settings
-image:
-  width: 1920
-  height: 1080
-  background_color: "#0a0e27"  # Dark blue
-  home_color: "#ff6b6b"         # Red for home marker
-  flight_color: "#4ecdc4"       # Teal for flight paths
-  text_color: "#ffffff"         # White for text
+  enabled: false
+  client_id: null
+  client_secret: null
